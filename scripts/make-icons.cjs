@@ -1,19 +1,39 @@
-// Generuje ikony PWA (192/512 + maskable) rysując je w Chromium (Playwright).
+// Generuje pikselowe ikony PWA (192/512 + maskable): korona 16×16 powiększona bez wygładzania.
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
+const CROWN = [
+  '................',
+  '................',
+  '.......Y........',
+  '..Y...YWY...Y...',
+  '.YWY...Y...YWY..',
+  '..Y...YYY...Y...',
+  '..YY.YYYYY.YY...',
+  '..YYYYYYYYYYY...',
+  '..YYYRYYYBYYY...',
+  '..YYYYYYYYYYY...',
+  '..ddddddddddd...',
+  '..YYYYYYYYYYY...',
+  '...ddddddddd....',
+  '................',
+  '................',
+  '................',
+].map((r) => r.padEnd(16, '.'));
+
 const draw = (size, pad) => `
+  const rows = ${JSON.stringify(CROWN)};
+  const pal = { Y: '#ffd23f', W: '#fff6c2', R: '#ff2848', B: '#3bd5ff', d: '#a8781a' };
   const c = document.createElement('canvas'); c.width = c.height = ${size};
-  const x = c.getContext('2d'); const s = ${size}; const p = s * ${pad};
-  x.fillStyle = '#07070d'; x.fillRect(0, 0, s, s);
-  const g = x.createRadialGradient(s/2, s/2, s*0.05, s/2, s/2, s*0.55); g.addColorStop(0, '#20235a'); g.addColorStop(1, '#07070d');
-  x.fillStyle = g; x.fillRect(0, 0, s, s);
-  const w = s - 2*p, cx = s/2, cy = s/2 + w*0.05, k = w*0.36;
-  x.shadowColor = '#ffd23f'; x.shadowBlur = s*0.06; x.fillStyle = '#ffd23f';
-  x.beginPath(); x.moveTo(cx-k, cy+k*0.55); x.lineTo(cx-k, cy-k*0.45); x.lineTo(cx-k*0.5, cy); x.lineTo(cx, cy-k*0.8);
-  x.lineTo(cx+k*0.5, cy); x.lineTo(cx+k, cy-k*0.45); x.lineTo(cx+k, cy+k*0.55); x.closePath(); x.fill();
-  x.shadowBlur = 0; x.fillStyle = '#ff2848'; x.beginPath(); x.arc(cx, cy+k*0.2, k*0.13, 0, Math.PI*2); x.fill();
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.fillStyle = '#14122a'; g.fillRect(0, 0, ${size}, ${size});
+  const inner = ${size} - 2 * ${size} * ${pad};
+  const px = Math.floor(inner / 13);
+  const off = Math.floor((${size} - px * 13) / 2);
+  // tło: delikatna szachownica
+  for (let y = 0; y < ${size}; y += px) for (let x = 0; x < ${size}; x += px) if (((x + y) / px) % 2 === 0) { g.fillStyle = '#18163a'; g.fillRect(x, y, px, px); }
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(off + (x - 1.5) * px, off + (y - 1) * px, px, px); } }));
   c.toDataURL('image/png');`;
 
 (async () => {
@@ -21,7 +41,7 @@ const draw = (size, pad) => `
   fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch();
   const page = await b.newPage();
-  for (const [name, size, pad] of [['icon-192.png', 192, 0.12], ['icon-512.png', 512, 0.12], ['maskable-512.png', 512, 0.22]]) {
+  for (const [name, size, pad] of [['icon-192.png', 192, 0.08], ['icon-512.png', 512, 0.08], ['maskable-512.png', 512, 0.2]]) {
     const data = await page.evaluate(draw(size, pad));
     fs.writeFileSync(path.join(out, name), Buffer.from(data.split(',')[1], 'base64'));
   }

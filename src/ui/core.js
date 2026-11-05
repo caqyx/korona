@@ -49,7 +49,9 @@ export function createCore() {
   function startLocal(slots) {
     const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i) }));
     touchRoot.classList.toggle('hidden', !slots.some((s) => s.device === 'touch'));
-    gameView.cam.mode = 'fit';
+    // jeden człowiek na dotyku: kamera za graczem (na telefonie cała arena jest za mała)
+  const humans = slots.filter((s) => s.device !== 'bot');
+  gameView.cam.mode = humans.length === 1 && humans[0].device === 'touch' ? 'follow' : 'fit';
     const target = Number(params.get('target')) || undefined;
     const game = createLocalGame({ slots: players, seed: (Date.now() & 0xffffffff) >>> 0, targetScore: target, speed: Number(params.get('speed')) || 1 }, (finalState) => {
       touchRoot.classList.add('hidden');
