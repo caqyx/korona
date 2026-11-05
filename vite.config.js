@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// BASE_PATH: ścieżka, pod którą gra jest serwowana (GitHub Pages: /<repo>/). Domyślnie '/'.
+const base = process.env.BASE_PATH || '/';
+
 export default defineConfig({
+  base,
   server: { port: 5173 },
   build: { target: 'es2022' },
   plugins: [
@@ -13,8 +17,8 @@ export default defineConfig({
         name: 'KORONA',
         short_name: 'KORONA',
         description: 'Arena PvP: zabij bossa, przejmij koronę.',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'landscape',
         background_color: '#07070d',
@@ -27,7 +31,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
       },
     }),
   ],

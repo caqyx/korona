@@ -26,6 +26,14 @@ Otwórz http://localhost:5173. Bez kluczy Supabase tryb online działa przez `Lo
 
 Parametry URL (debug/testy): `?transport=local` wymusza transport lokalny, `?relay=1` wyłącza WebRTC (tylko przekaźnik), `?bot=1` steruje botem, `?speed=8` przyspiesza symulację hosta, `?score=N` nadpisuje wynik urządzenia, `?target=N` zmienia cel punktowy, `?ice=none` bez STUN.
 
+## Publikacja na GitHub Pages
+
+Pages nie może serwować plików źródłowych — gra musi być zbudowana (`dist/`). Robi to workflow `.github/workflows/deploy.yml`:
+1. Repo → **Settings → Pages → Build and deployment → Source: GitHub Actions** (nie „Deploy from a branch”).
+2. Push na `main` (lub tę gałąź) albo **Actions → Deploy na GitHub Pages → Run workflow**.
+3. Gra będzie pod `https://<użytkownik>.github.io/<repo>/` — workflow ustawia `BASE_PATH=/<repo>/`.
+4. (Opcjonalnie, online przez Supabase) **Settings → Secrets and variables → Actions → Variables**: dodaj `VITE_SUPABASE_URL` i `VITE_SUPABASE_ANON_KEY`. Bez nich działa tryb lokalny i online w kartach jednej przeglądarki.
+
 ## Konfiguracja Supabase krok po kroku
 
 1. Utwórz projekt na https://supabase.com (dla tego repo już istnieje: `korona`, ref `stnsislxdqqewbaichur`).
