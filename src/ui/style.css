@@ -4,7 +4,7 @@ html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-
 #game { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
 .hidden { display:none !important; }
 .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:16px; background:radial-gradient(circle at 50% 30%, #161838 0%, rgba(7,7,13,.97) 65%); overflow:auto; }
-.logo { font-size:clamp(48px, 12vw, 110px); margin:0; letter-spacing:.12em; color:var(--gold); text-shadow:0 0 24px rgba(255,210,63,.6), 0 0 60px rgba(255,210,63,.3); }
+.logo { font-size:clamp(40px, min(12vw, 16vh), 110px); margin:0; letter-spacing:.12em; color:var(--gold); text-shadow:0 0 24px rgba(255,210,63,.6), 0 0 60px rgba(255,210,63,.3); }
 .tag { margin:0 0 8px; opacity:.8; }
 h2 { margin:0; display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
 .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; }

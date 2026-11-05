@@ -129,7 +129,8 @@ function drawRoulette(ctx, cam, view, time) {
   ctx.textAlign = 'center';
   ctx.fillStyle = CROWN;
   ctx.font = '800 30px system-ui, sans-serif';
-  ctx.fillText(`${p ? p.nick : '?'} — nowy boss`, cam.w / 2, cam.h * 0.3);
+  const by = Math.max(110, cam.h * 0.3);
+  ctx.fillText(`${p ? p.nick : '?'} — nowy boss`, cam.w / 2, by - 24);
   const choices = tr.choices;
   const spin = elapsed < 1.0;
   const idx = spin ? Math.floor(time * 14) % choices.length : choices.indexOf(tr.bossType);
@@ -137,15 +138,15 @@ function drawRoulette(ctx, cam, view, time) {
     const x = cam.w / 2 + (i - (choices.length - 1) / 2) * 120;
     const active = i === idx;
     ctx.fillStyle = active ? BOSSES[c].color : 'rgba(255,255,255,0.15)';
-    ctx.fillRect(x - 48, cam.h * 0.38, 96, 56);
+    ctx.fillRect(x - 48, by, 96, 56);
     ctx.fillStyle = active ? '#000' : '#aaa';
     ctx.font = '700 15px system-ui, sans-serif';
-    ctx.fillText(BOSSES[c].name, x, cam.h * 0.38 + 34);
+    ctx.fillText(BOSSES[c].name, x, by + 34);
   });
   if (!spin) {
     ctx.fillStyle = BOSSES[tr.bossType].color;
     ctx.font = '800 40px system-ui, sans-serif';
-    ctx.fillText(BOSSES[tr.bossType].name.toUpperCase(), cam.w / 2, cam.h * 0.55);
+    ctx.fillText(BOSSES[tr.bossType].name.toUpperCase(), cam.w / 2, by + 104);
   }
   ctx.textAlign = 'left';
 }

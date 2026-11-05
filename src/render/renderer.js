@@ -358,7 +358,7 @@ function drawPlayers(ctx, cam, view, o) {
       ctx.globalAlpha = p.boss.invisT > 0 ? (isMe ? 0.45 : 0.15) : 1;
       drawCrownShape(ctx, x, y - r - 0.5 * cam.scale, 0.55 * cam.scale, 16);
     } else {
-      const r = HERO.radius * cam.scale;
+      const r = Math.max(7, HERO.radius * cam.scale);
       const blink = p.invulnT > 0 && Math.floor(o.time * 12) % 2 === 0;
       ctx.globalAlpha = blink ? 0.45 : 1;
       ctx.shadowColor = color;
