@@ -9,3 +9,5 @@
 7. **Migracja przy jednoczesnej utracie hosta i następcy** — klienci po 3,5 s wykluczają następcę i wybierają kolejnego; w tym czasie gra stoi z nakładką „Migracja hosta…”.
 8. **Ukryta karta hosta w prawdziwej przeglądarce** — Chrome dławi timery ukrytych kart do ~1 Hz, więc przekazanie planowane może nastąpić 1–2 s po ukryciu (test E2E symuluje ukrycie bez dławienia).
 9. **Przekaźnik a krótkie wciśnięcia** — bity przycisków są łączone, ale przy 10 Hz celowanie i ruch klienta mają opóźnienie do 100 ms + interpolacja.
+10. **Tożsamość nadawcy w Supabase Realtime nie jest uwierzytelniona** (QA, HIGH) — pole `from` i klucz Presence wybiera klient. Naprawione: właściciel pokoju brany z `rooms.owner_id`, `start` musi pochodzić od `hostId`, `host_claim` tylko od uczestników meczu, liczniki w snapshocie walidowane (XSS w podsumowaniu), limit długości stringów. Nienaprawione (wymaga private channels): podszywanie się pod hosta/gracza przez osobę znającą kod pokoju.
+11. **Fałszowanie wyników w bazie** (QA, MEDIUM) — RLS gwarantuje tylko `host_id = auth.uid()`; baza nie wie, kto grał. Patrz `TODO-human.md` pkt 8.

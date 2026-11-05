@@ -2,6 +2,9 @@
 
 Projekt Supabase **`korona`** (ref `stnsislxdqqewbaichur`, region eu-central-1) został utworzony, a migracje z `supabase/migrations/` są już na nim zastosowane (tabele, RLS, indeksy, pg_cron co 15 min).
 
+## 0. Zastosuj migrację `20261105000003_harden_room_timestamps.sql`
+Migracje 0001 i 0002 są już na projekcie. Trzecia (serwer ustawia `created_at/updated_at` w `rooms`, żeby pokoje nie omijały sprzątania) **nie została zastosowana** — narzędzie Supabase poprosiło o potwierdzenie (zawiera `drop trigger`), a w sesji nikt nie odpowiedział. Uruchom jej treść w Dashboard → SQL Editor albo `npx supabase db push`.
+
 ## 1. Włącz anonimowe logowanie (wymagane dla trybu online przez Supabase)
 Nie da się tego zrobić przez SQL ani narzędzia, którymi dysponowała sesja.
 1. Otwórz https://supabase.com/dashboard/project/stnsislxdqqewbaichur/auth/providers
@@ -35,3 +38,8 @@ Lighthouse nie był dostępny w sesji. Instalowalność sprawdza test E2E (`Page
 ## 7. Ręczne testy, których nie da się zautomatyzować
 - Prawdziwe pady (Xbox/PS) w trybie lokalnym — mapowanie „standard gamepad”.
 - Sterowanie dotykowe na telefonie (zainstalowana PWA, orientacja pozioma, Wake Lock).
+
+## 8. Bezpieczeństwo przed publicznym udostępnieniem (wynik przeglądu QA)
+- **Kanały Realtime są publiczne**: znając kod pokoju i klucz anon, można podszyć się pod `from` (np. hosta). Między znajomymi to akceptowane ryzyko (GDD 6.6); dla obcych: włącz private channels (`config: { private: true }`) z RLS na `realtime.messages` ograniczającym topic do członków pokoju.
+- **Ranking wyników można sfałszować**: każdy zalogowany może wstawić własny `matches` (jako host) i dowolne `match_results`. Przed rankingiem globalnym potrzebna weryfikacja po stronie serwera (Edge Function lub tabela uczestników).
+- `rooms_select using (true)` pozwala wylistować kody pokoi; rozważ RPC `find_room(code)` zamiast pełnego SELECT.
