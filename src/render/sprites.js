@@ -13,14 +13,15 @@
  *
  * Rozmiary i liczby klatek (frame zawsze brane modulo):
  *  - bohater 24×20, kotwica (10,17); idle 4, walk 4, attack 3 (zamach/cios/wybrzmienie), dash 2, hurt 2 (biały/czerwony)
- *  - boss 56×52, kotwica (28,48); idle 4, walk 4, cast 2, hurt 1 (biała sylwetka)
- *  - szkielet 12×14, pajączek 12×9, wieżyczka 12×12 — 2 klatki
- *  - korona 12×9 — 4 klatki; filar 2·r·PPM+2 × (+10) ; ikony 12×12; pociski 3–9 px
+ *  - boss 56×52, kotwica (28,48); idle 4, walk 4, cast 2, hurt 1 (biała sylwetka); bez korony i cienia
+ *  - szkielet 12×14 (kotwica 5,12), pajączek 12×9 (6,7), wieżyczka 15×11 (6,10) — 2 klatki
+ *  - korona 12×9 (6,8) — 4 klatki; filar (2·r·PPM+4) × (0.95·2·r·PPM+5), kotwica środek dołu
+ *  - ikony 12×12 (kotwica 6,6); pociski 5–13 px, kotwica środek dołu (ox=w/2, oy=h-1), scythe 4 klatki obrotu
  *
  * @typedef {{img: HTMLCanvasElement, ox: number, oy: number, w: number, h: number}} Sprite
  */
-import { buildHero, HERO_W, HERO_H, HERO_OX, HERO_OY, HERO_FRAMES } from './sprites/heroes.js';
-import { buildBoss, BOSS_W, BOSS_H, BOSS_OX, BOSS_OY, BOSS_FRAMES } from './sprites/bosses.js';
+import { buildHero, HERO_OX, HERO_OY, HERO_FRAMES } from './sprites/heroes.js';
+import { buildBoss, BOSS_OX, BOSS_OY, BOSS_FRAMES } from './sprites/bosses.js';
 import { buildMinion, buildTurret, buildCrown, buildPillar, buildProjectile } from './sprites/misc.js';
 import { buildIcon } from './sprites/icons.js';
 import { mod } from './sprites/pixels.js';
@@ -70,8 +71,6 @@ export function getHeroSprite(skin, accent, anim, frame) {
   const f = mod(frame, HERO_FRAMES[a]);
   return cached(`h:${skin}:${accent}:${a}:${f}`, () => toSprite(buildHero(skin, accent, a, f), HERO_OX, HERO_OY));
 }
-void HERO_W;
-void HERO_H;
 
 /**
  * @param {string} type kolos|cien|nekromanta|burza|smok|szron|pajeczyca|widmo
@@ -84,8 +83,6 @@ export function getBossSprite(type, anim, frame) {
   const f = mod(frame, BOSS_FRAMES[a]);
   return cached(`b:${type}:${a}:${f}`, () => toSprite(buildBoss(type, a, f), BOSS_OX, BOSS_OY));
 }
-void BOSS_W;
-void BOSS_H;
 
 /** @param {'skeleton'|'spiderling'} kind @param {number} frame @returns {Sprite} */
 export function getMinionSprite(kind, frame) {

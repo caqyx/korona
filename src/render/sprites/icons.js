@@ -3,7 +3,7 @@
  * Znaki: 1/2/3/4 = rampa koloru ikony (jasny/bazowy/ciemny/najjaśniejszy), w biały, W/g/G szarości,
  * k obrys, y/Y złoto, b brąz, r/R czerwień.
  */
-import { PixelBuffer, OUTLINE, ramp, mod } from './pixels.js';
+import { PixelBuffer, OUTLINE, ramp } from './pixels.js';
 
 const FIXED = {
   w: '#ffffff',
@@ -227,6 +227,5 @@ export function buildIcon(name) {
   const b = new PixelBuffer(12, 12);
   b.draw(inner, 1, 1);
   b.outline(OUTLINE);
-  void mod;
   return b;
 }
