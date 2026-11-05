@@ -13,6 +13,11 @@ import { play, vibrate, setMusicMode } from '../audio/sfx.js';
  * Pętla rysowania (requestAnimationFrame). Logikę gry dostarcza `source`.
  * @param {HTMLCanvasElement} canvas @param {'local'|'online'} mode
  */
+const touchVisible = () => {
+  const t = document.getElementById('touch');
+  return !!t && !t.classList.contains('hidden');
+};
+
 export function createGameView(canvas, mode) {
   const renderer = createRenderer(canvas);
   const cam = createCamera();
@@ -58,7 +63,7 @@ export function createGameView(canvas, mode) {
     updateCamera(cam, w, h, me && me.alive ? me : null, dt);
     const v = lastFrame.view;
     setMusic(v.phase === 'ended' ? 'victory' : v.phase === 'transition' ? 'case' : me?.boss ? 'boss' : 'hero');
-    renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play });
+    renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play, touch: touchVisible() });
   }
 
   return {

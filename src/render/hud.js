@@ -57,7 +57,9 @@ export function drawHud(ctx, cam, view, o) {
   drawBossBar(ctx, cam, view, o.time, u);
   drawTimer(ctx, cam, view, u);
   drawFeed(ctx, cam, o.fx, u);
-  if (o.mode === 'online' || o.meIds.length === 1) {
+  if (o.touch) {
+    // na dotyku cooldowny pokazują same przyciski
+  } else if (o.mode === 'online' || o.meIds.length === 1) {
     if (me) drawCooldowns(ctx, cam, me, 12 * u, cam.h - 46 * u, u, true);
   } else {
     o.meIds.forEach((id, i) => {

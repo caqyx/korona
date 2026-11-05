@@ -69,7 +69,7 @@ Realtime (Presence i Broadcast) nie wymaga dodatkowej konfiguracji — używane 
 7. Host (`net/host.js`) zbiera inputy, liczy `step()` 60 Hz i wysyła snapshot 20 Hz; klient (`net/client.js`) wysyła input 30 Hz i renderuje z bufora interpolacji opóźnionego o 100 ms.
 8. `net/election.js` liczy wynik urządzenia z benchmarku `step()`, ustala deterministyczny ranking hosta i następcy, rozstrzyga konflikty `epoch` i warunki migracji planowanej, a `net/session.js` wykonuje migracje (handoff, `host_claim`, odliczanie).
 9. Każda wiadomość z sieci przechodzi przez walidację w `net/messages.js`, a w bazie zapis wyników chronią polityki RLS (tylko host meczu).
-10. Warstwa `render/` (Canvas 2D, neon, juice), `input/` (klawiatura, pady, dotyk, bot), `audio/` (WebAudio) i `ui/` tylko czytają stan — update i render są rozdzielone.
+10. Warstwa `render/` (Canvas 2D, pixel art generowany w kodzie, juice), `input/` (klawiatura, pady, dotyk, bot), `audio/` (WebAudio) i `ui/` tylko czytają stan — update i render są rozdzielone.
 
 ## Dokumenty
 - [`docs/decisions.md`](docs/decisions.md) — decyzje projektowe i zmiany balansu
