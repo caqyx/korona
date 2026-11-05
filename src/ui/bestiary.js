@@ -22,7 +22,7 @@ export function openBestiary() {
   });
   for (const t of body.querySelectorAll('.best-tile')) {
     const id = /** @type {HTMLElement} */ (t).dataset.boss || 'kolos';
-    mount(t.querySelector('.best-thumb'), bossPreview(id, { w: 48, h: 48, maxScale: 1 }));
+    mount(t.querySelector('.best-thumb'), bossPreview(id, { w: 56, h: 56, maxScale: 1 }));
     t.addEventListener('click', () => show(body, id));
   }
   show(body, selected);
@@ -55,6 +55,6 @@ function show(body, id) {
       ${row('e', tx.e[0], tx.e[1], b.e.cd)}
       ${row('r', tx.r[0], tx.r[1], b.r.cd)}
     </ul>`;
-  mount(det.querySelector('.best-sprite'), bossPreview(id, { w: 132, h: 132, maxScale: 3 }));
+  mount(det.querySelector('.best-sprite'), bossPreview(id, { w: 168, h: 160, maxScale: 3 }));
   for (const el of det.querySelectorAll('[data-ico]')) mount(el, iconCanvas(/** @type {HTMLElement} */ (el).dataset.ico || '', 2));
 }

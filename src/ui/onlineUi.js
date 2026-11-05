@@ -17,14 +17,8 @@ import { createKeyboardMouse } from '../input/keyboard.js';
 import { createBotDevice } from '../input/bot.js';
 import { isTouchDevice } from '../input/touch.js';
 import { keepAwake } from './pwa.js';
-
-const SKIN_INFO = {
-  rycerz: 'Tarcza — przetrwanie',
-  lucznik: 'Przeszywający strzał',
-  lotrzyk: 'Krok cienia ×3',
-  kaplan: 'Aura leczenia',
-  inzynier: 'Wieżyczka',
-};
+import { SKIN_TEXT } from './codex.js';
+import { heroPreview, mount } from './previews.js';
 
 /** @param {{gameView:any, nickInput:HTMLInputElement, touchRoot:HTMLElement, getTouch:()=>any, params:URLSearchParams, backToMenu:()=>void}} ctx */
 export function startOnlineUi(ctx) {
@@ -143,6 +137,7 @@ export function startOnlineUi(ctx) {
       .map((p, i) => {
         const pct = Math.min(100, (p.deviceScore / Math.max(1, info.players[0].deviceScore)) * 100);
         return `<li style="--c:${slotColor(i)}" data-id="${esc(p.userId)}">
+          <span class="mini" data-skin-pv="${esc(p.skin || '')}"></span>
           <span class="nick">${esc(p.nick)}${p.userId === info.selfId ? ' (ty)' : ''}</span>
           <span class="badge">${SKINS[p.skin]?.name ?? ''}</span>
           ${p.userId === info.hostId ? '<span class="badge host">♛ host</span>' : ''}
@@ -152,6 +147,10 @@ export function startOnlineUi(ctx) {
         </li>`;
       })
       .join('');
+    ul.querySelectorAll('[data-skin-pv]').forEach((el, i) => {
+      const sk = /** @type {HTMLElement} */ (el).dataset.skinPv;
+      if (sk && /** @type {any} */ (SKINS)[sk]) mount(el, heroPreview(sk, slotColor(i), { w: 48, h: 44, maxScale: 2 }));
+    });
     const st = /** @type {HTMLButtonElement} */ ($('#btn-start'));
     st.classList.toggle('hidden', !info.isOwner);
     const lobbyPeers = info.players.filter((p) => p.status === 'lobby');
@@ -161,14 +160,36 @@ export function startOnlineUi(ctx) {
   }
 
   function renderSkins() {
-    $('#lobby-skins').innerHTML = SKIN_IDS.map(
-      (id) => `<div class="skin ${id === skin ? 'sel' : ''}" data-skin="${id}" style="--c:${SKINS[id].color}">${SKINS[id].name}<small>${SKIN_INFO[id]}</small></div>`,
-    ).join('');
-    for (const el of $('#lobby-skins').querySelectorAll('.skin')) {
-      el.addEventListener('click', () => {
-        skin = /** @type {HTMLElement} */ (el).dataset.skin || 'rycerz';
+    const root = $('#lobby-skins');
+    root.innerHTML = SKIN_IDS.map((id) => {
+      const t = SKIN_TEXT[id];
+      return `<div class="skin ${id === skin ? 'sel' : ''}" data-skin="${id}" style="--c:${SKINS[id].color}" role="button" tabindex="0" aria-pressed="${id === skin}">
+          <div class="skin-pv"></div>
+          <span class="skin-name">${SKINS[id].name}</span>
+          <span class="role">${esc(t.role)}</span>
+          <span class="line"><span class="k">Atak:</span> ${esc(t.attack)}</span>
+          <span class="abil"><b>${esc(t.ability)}</b> <span class="cd">${t.cd} s</span><br />${esc(t.abilityDesc)}</span>
+        </div>`;
+    }).join('');
+    for (const el of root.querySelectorAll('.skin')) {
+      const id = /** @type {HTMLElement} */ (el).dataset.skin || 'rycerz';
+      mount(el.querySelector('.skin-pv'), heroPreview(id, SKINS[id].color, { w: 96, h: 84, maxScale: 4 }));
+      const pick = () => {
+        skin = id;
         session?.setSkin(skin);
-        renderSkins();
+        for (const c of root.querySelectorAll('.skin')) {
+          const on = /** @type {HTMLElement} */ (c).dataset.skin === id;
+          c.classList.toggle('sel', on);
+          c.setAttribute('aria-pressed', String(on));
+        }
+      };
+      el.addEventListener('click', pick);
+      el.addEventListener('keydown', (e) => {
+        const k = /** @type {KeyboardEvent} */ (e).key;
+        if (k === 'Enter' || k === ' ') {
+          e.preventDefault();
+          pick();
+        }
       });
     }
   }

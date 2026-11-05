@@ -12,7 +12,7 @@ const SLIDERS = [
 
 const CONTROLS = [
   ['Ruch', 'WASD', 'IJKL', 'lewa gałka', 'joystick'],
-  ['Celowanie', 'mysz', 'auto', 'prawa gałka', 'auto / przeciągnij ATAK'],
+  ['Celowanie', 'mysz', 'auto', 'prawa gałka', 'auto / ciągnij ATAK'],
   ['Atak', 'LPM', 'U', 'RT', 'ATAK'],
   ['Dash', 'Spacja', 'P', 'A', 'DASH'],
   ['Umiejętność', 'PPM / F', 'O', 'RB', 'UMIEJ.'],
@@ -33,7 +33,7 @@ export async function openSettings() {
           <h3>Dźwięk</h3>
           ${SLIDERS.map(
             ([k, l]) => `<label class="set-row"><span>${l}</span>
-              <input type="range" class="px-range" min="0" max="100" step="5" data-set="${k}" value="${Math.round((s[k] ?? 0.8) * 100)}" />
+              <input type="range" class="px-range" min="0" max="100" step="5" data-set="${k}" value="${Math.round((s[k] ?? 0.8) * 100)}" style="--fill:${Math.round((s[k] ?? 0.8) * 100)}%" />
               <output data-out="${k}">${Math.round((s[k] ?? 0.8) * 100)}</output></label>`,
           ).join('')}
           <label class="set-row toggle"><span>Wycisz wszystko</span><input type="checkbox" class="px-check" data-set="muted" ${s.muted ? 'checked' : ''} /><i></i></label>
@@ -56,6 +56,7 @@ export async function openSettings() {
       if (inp.type === 'checkbox') audio.setSettings({ [k]: inp.checked });
       else {
         audio.setSettings({ [k]: Number(inp.value) / 100 });
+        inp.style.setProperty('--fill', `${inp.value}%`);
         const out = body.querySelector(`[data-out="${k}"]`);
         if (out) out.textContent = inp.value;
       }

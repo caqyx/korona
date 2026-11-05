@@ -1,5 +1,5 @@
 /**
- * Sprite'y pixel art generowane w kodzie (bez plików graficznych). ZAŚLEPKA — implementacja docelowa w toku.
+ * Sprite'y pixel art generowane w kodzie (bez plików graficznych).
  *
  * Konwencje (wiążące dla całego renderera):
  *  - Świat rysowany jest w buforze o niskiej rozdzielczości: PPM pikseli sztuki na metr.
@@ -8,24 +8,54 @@
  *  - Rysowanie wyłącznie fillRect na całkowitych współrzędnych (zero antyaliasingu).
  *  - Wszystko cachowane po kluczu; wywołania są tanie.
  *
+ * Grafika powstaje w czystych modułach src/render/sprites/*.js (bufor pikseli bez DOM),
+ * a tutaj jest tylko zamieniana na kanwę i cachowana.
+ *
+ * Rozmiary i liczby klatek (frame zawsze brane modulo):
+ *  - bohater 24×20, kotwica (10,17); idle 4, walk 4, attack 3 (zamach/cios/wybrzmienie), dash 2, hurt 2 (biały/czerwony)
+ *  - boss 56×52, kotwica (28,48); idle 4, walk 4, cast 2, hurt 1 (biała sylwetka)
+ *  - szkielet 12×14, pajączek 12×9, wieżyczka 12×12 — 2 klatki
+ *  - korona 12×9 — 4 klatki; filar 2·r·PPM+2 × (+10) ; ikony 12×12; pociski 3–9 px
+ *
  * @typedef {{img: HTMLCanvasElement, ox: number, oy: number, w: number, h: number}} Sprite
  */
+import { buildHero, HERO_W, HERO_H, HERO_OX, HERO_OY, HERO_FRAMES } from './sprites/heroes.js';
+import { buildBoss, BOSS_W, BOSS_H, BOSS_OX, BOSS_OY, BOSS_FRAMES } from './sprites/bosses.js';
+import { buildMinion, buildTurret, buildCrown, buildPillar, buildProjectile } from './sprites/misc.js';
+import { buildIcon } from './sprites/icons.js';
+import { mod } from './sprites/pixels.js';
 
 /** Piksele sztuki na metr świata. */
 export const PPM = 12;
 
+/** @type {Map<string, Sprite|null>} */
 const cache = new Map();
-function placeholder(key, w, h, color) {
-  if (cache.has(key)) return cache.get(key);
+
+/** @param {import('./sprites/pixels.js').PixelBuffer} buf @param {number} ox @param {number} oy @returns {Sprite} */
+function toSprite(buf, ox, oy) {
   const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
+  c.width = buf.w;
+  c.height = buf.h;
   const g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
-  g.fillStyle = color;
-  g.fillRect(1, 1, w - 2, h - 2);
-  const s = { img: c, ox: Math.floor(w / 2), oy: h - 1, w, h };
-  cache.set(key, s);
-  return s;
+  for (const [x, y, w, col] of buf.runs()) {
+    g.fillStyle = col;
+    g.fillRect(x, y, w, 1);
+  }
+  return { img: c, ox, oy, w: buf.w, h: buf.h };
+}
+
+/**
+ * @template T
+ * @param {string} key @param {() => T} make
+ * @returns {T}
+ */
+function cached(key, make) {
+  let s = cache.get(key);
+  if (s === undefined) {
+    s = /** @type {any} */ (make());
+    cache.set(key, /** @type {any} */ (s));
+  }
+  return /** @type {T} */ (s);
 }
 
 /**
@@ -36,8 +66,12 @@ function placeholder(key, w, h, color) {
  * @returns {Sprite}
  */
 export function getHeroSprite(skin, accent, anim, frame) {
-  return placeholder(`h:${skin}:${accent}:${anim}:${frame % 4}`, 14, 16, accent);
+  const a = anim in HERO_FRAMES ? anim : 'idle';
+  const f = mod(frame, HERO_FRAMES[a]);
+  return cached(`h:${skin}:${accent}:${a}:${f}`, () => toSprite(buildHero(skin, accent, a, f), HERO_OX, HERO_OY));
 }
+void HERO_W;
+void HERO_H;
 
 /**
  * @param {string} type kolos|cien|nekromanta|burza|smok|szron|pajeczyca|widmo
@@ -46,27 +80,46 @@ export function getHeroSprite(skin, accent, anim, frame) {
  * @returns {Sprite}
  */
 export function getBossSprite(type, anim, frame) {
-  return placeholder(`b:${type}:${anim}:${frame % 4}`, 40, 40, '#f44');
+  const a = anim in BOSS_FRAMES ? anim : 'idle';
+  const f = mod(frame, BOSS_FRAMES[a]);
+  return cached(`b:${type}:${a}:${f}`, () => toSprite(buildBoss(type, a, f), BOSS_OX, BOSS_OY));
 }
+void BOSS_W;
+void BOSS_H;
 
 /** @param {'skeleton'|'spiderling'} kind @param {number} frame @returns {Sprite} */
 export function getMinionSprite(kind, frame) {
-  return placeholder(`m:${kind}:${frame % 2}`, 10, 10, '#eee');
+  const f = mod(frame, 2);
+  return cached(`m:${kind}:${f}`, () => {
+    const { buf, ox, oy } = buildMinion(kind, f);
+    return toSprite(buf, ox, oy);
+  });
 }
 
 /** @param {string} accent @param {number} frame @returns {Sprite} */
 export function getTurretSprite(accent, frame) {
-  return placeholder(`t:${accent}:${frame % 2}`, 10, 10, accent);
+  const f = mod(frame, 2);
+  return cached(`t:${accent}:${f}`, () => {
+    const { buf, ox, oy } = buildTurret(accent, f);
+    return toSprite(buf, ox, oy);
+  });
 }
 
 /** Korona (nad bossem i na środku areny). @param {number} frame @returns {Sprite} */
 export function getCrownSprite(frame) {
-  return placeholder(`c:${frame % 4}`, 12, 9, '#ffd23f');
+  const f = mod(frame, 4);
+  return cached(`c:${f}`, () => {
+    const { buf, ox, oy } = buildCrown(f);
+    return toSprite(buf, ox, oy);
+  });
 }
 
 /** Filar (kolumna) dla promienia w metrach. @param {number} radius @returns {Sprite} */
 export function getPillarSprite(radius) {
-  return placeholder(`p:${radius}`, Math.round(radius * 2 * PPM), Math.round(radius * 2 * PPM) + 8, '#556');
+  return cached(`p:${radius}`, () => {
+    const { buf, ox, oy } = buildPillar(radius, PPM);
+    return toSprite(buf, ox, oy);
+  });
 }
 
 /**
@@ -75,12 +128,14 @@ export function getPillarSprite(radius) {
  * @param {string} name @returns {Sprite}
  */
 export function getIcon(name) {
-  return placeholder(`i:${name}`, 12, 12, '#aaa');
+  return cached(`i:${name}`, () => toSprite(buildIcon(name), 6, 6));
 }
 
 /** Pocisk (opcjonalnie); kind z symulacji: bolt|pierce|turret|reflected|fireball|iceShard|web|scythe|blade|necroBolt|spark. @returns {Sprite|null} */
 export function getProjectileSprite(kind, accent, frame) {
-  void kind;
-  void frame;
-  return placeholder(`pr:${kind}:${accent}`, 4, 4, accent);
+  const f = mod(frame, 4);
+  return cached(`pr:${kind}:${accent}:${f}`, () => {
+    const r = buildProjectile(kind, accent, f);
+    return r ? toSprite(r.buf, r.ox, r.oy) : null;
+  });
 }

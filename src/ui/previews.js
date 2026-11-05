@@ -16,6 +16,9 @@ let frame = 0;
 let acc = 0;
 let last = 0;
 
+/** Ogranicza v do przedziału między 0 a `room` (room może być ujemne). */
+const clamp = (v, room) => Math.min(Math.max(0, room), Math.max(Math.min(0, room), v));
+
 /** Rysuje sprite w canvasie: największa całkowita skala, wyśrodkowany, przy dolnej krawędzi. */
 function paint(c, spr, maxScale = 6, shadow = true) {
   const g = /** @type {CanvasRenderingContext2D} */ (c.getContext('2d'));
@@ -26,14 +29,20 @@ function paint(c, spr, maxScale = 6, shadow = true) {
   const s = Math.max(1, Math.min(maxScale, Math.floor(Math.min(c.width / spr.w, (c.height - pad * 2) / spr.h))));
   const dw = spr.w * s;
   const dh = spr.h * s;
-  const dx = Math.floor((c.width - dw) / 2);
-  const dy = Math.floor(c.height - pad * 2 - dh);
+  // środek stóp (ox) na środku canvasu, ale sprite nie może wyjść poza krawędź
+  const ox = Number.isFinite(spr.ox) ? spr.ox : spr.w / 2;
+  const oy = Number.isFinite(spr.oy) ? spr.oy : spr.h - 1;
+  const dx = Math.round(clamp(c.width / 2 - (ox + 0.5) * s, c.width - dw));
+  const footY = c.height - pad * 2 - s;
+  const dy = Math.round(clamp(footY - oy * s, c.height - dh));
   if (shadow) {
     // pikselowy cień pod stopami
-    const sw = Math.max(4, Math.round(dw * 0.6));
+    const fx = dx + Math.round((ox + 0.5) * s);
+    const sw = Math.max(4, Math.round(spr.w > 32 ? dw * 0.5 : Math.min(dw, 12 * s) * 0.6));
+    const sy = dy + oy * s + Math.round(s / 2);
     g.fillStyle = 'rgba(0,0,0,.45)';
-    g.fillRect(Math.floor((c.width - sw) / 2), c.height - pad * 2 - s, sw, s * 2);
-    g.fillRect(Math.floor((c.width - sw) / 2) + s, c.height - pad * 2 - s * 2, sw - s * 2, s * 4);
+    g.fillRect(fx - Math.round(sw / 2), sy, sw, s);
+    g.fillRect(fx - Math.round(sw / 2) + s, sy - s, sw - 2 * s, s * 3);
   }
   g.drawImage(spr.img, 0, 0, spr.w, spr.h, dx, dy, dw, dh);
 }

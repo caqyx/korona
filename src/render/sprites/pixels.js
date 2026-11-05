@@ -176,13 +176,15 @@ export class PixelBuffer {
     const ly = o.ly ?? -0.65;
     const lo = o.min ?? 0;
     const hi = o.max ?? rmp.length - 1;
+    const th = o.th ?? [-0.4, 0.2, 0.7, 0.88];
     return this.ellipse(cx, cy, rx, ry, (x, y, nx, ny) => {
       const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
-      const v = nx * lx + ny * ly + nz * 0.55; // ok. -1..1.4
-      let t = (v + 0.55) / 1.6;
-      if (o.dither !== false) t += ((x + y) & 1 ? 0.06 : -0.06);
-      const i = Math.max(lo, Math.min(hi, Math.floor(t * rmp.length)));
-      return rmp[i];
+      let v = (nx * lx + ny * ly) * 0.8 + nz * 0.5;
+      if (o.dither !== false) v += (x + y) & 1 ? 0.03 : -0.03;
+      let i = 0;
+      while (i < th.length && v > th[i]) i++;
+      i = Math.round((i / th.length) * (rmp.length - 1));
+      return rmp[Math.max(lo, Math.min(hi, i))];
     });
   }
 

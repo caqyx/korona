@@ -185,9 +185,9 @@ function wrench(b, hx, hy, ang) {
   const ey = hy + sa * 5;
   const px = -sa;
   const py = ca;
-  for (let t = -1; t <= 1; t++) b.set(Math.round(ex + px * t), Math.round(ey + py * t), STEEL.S);
-  b.set(Math.round(ex + ca + px * 1.2), Math.round(ey + sa + py * 1.2), STEEL.W);
-  b.set(Math.round(ex + ca - px * 1.2), Math.round(ey + sa - py * 1.2), STEEL.W);
+  for (let t = -2; t <= 1; t++) b.set(Math.round(ex + px * t), Math.round(ey + py * t), STEEL.S);
+  b.set(Math.round(ex + ca + px), Math.round(ey + sa + py), STEEL.W);
+  b.set(Math.round(ex + ca - px * 2), Math.round(ey + sa - py * 2), STEEL.W);
 }
 
 function dagger(b, hx, hy, ang, len = 3) {
@@ -198,7 +198,7 @@ function dagger(b, hx, hy, ang, len = 3) {
   for (let i = 2; i <= len + 1; i++) b.set(Math.round(hx + ca * i), Math.round(hy + sa * i), i === len + 1 ? STEEL.S : STEEL.W);
 }
 
-const SHIELD = ['.sSSs.', 'sSaASs', 'SaAAas', 'saAqad', '.saqd.', '..dd..'];
+const SHIELD = ['sSSSSd', 'SAaaqd', 'SaAaqd', 'saaqqd', '.saqd.', '..sd..'];
 function shield(b, x, y, pal) {
   b.stamp(SHIELD, { ...pal, s: STEEL.s, S: STEEL.S, d: STEEL.d }, x, y);
 }
@@ -358,44 +358,44 @@ export function buildHero(skin, accent, anim, frame) {
   b.outline(K);
 
   // --- broń (osobna warstwa z obrysem) ---
-  layer(b, (w) => {
-    const sh = lean ? 1 : 0;
+  const sh = lean ? 1 : 0;
+  const weapon = (w) => {
     if (id === 'rycerz') {
-      const ang = { idle: -1.4, wind: -2.6, strike: -0.1, follow: 0.7 }[wpn];
-      sword(w, hx + sh, hy, ang, wpn === 'strike' ? 8 : 7);
-      if (a !== 'dash') shield(w, bkx - 3, bky - 3, pal);
+      if (wpn === 'wind') sword(w, hx, hy - 4, -1.62, 7);
+      else sword(w, hx + sh, hy, { idle: -1.4, strike: -0.15, follow: 0.75 }[wpn], wpn === 'strike' ? 8 : 7);
     } else if (id === 'lucznik') {
       const pull = { idle: 0, wind: 2, strike: 3, follow: 0 }[wpn];
       bow(w, hx + sh, hy - 1, pull, wpn === 'wind' || wpn === 'strike');
     } else if (id === 'lotrzyk') {
       if (wpn === 'idle') {
-        dagger(w, hx, hy, 0.6);
-        dagger(w, bkx, bky, 2.2);
+        dagger(w, hx, hy, 0.35);
       } else if (wpn === 'wind') {
-        dagger(w, hx - 1, hy - 1, -2.3);
-        dagger(w, bkx, bky, 2.4);
+        dagger(w, hx - 1, hy - 2, -1.9);
+        dagger(w, bkx + 1, bky + 1, 1.9);
       } else if (wpn === 'strike') {
-        dagger(w, hx + 1, hy - 1, -0.15, 4);
-        dagger(w, bkx + 2, bky + 1, 0.4);
+        dagger(w, hx + 1, hy - 1, -0.1, 4);
+        dagger(w, bkx + 2, bky + 1, 1.7);
       } else {
-        dagger(w, hx, hy, 0.4);
-        dagger(w, bkx + 4, bky, -0.2, 4);
+        dagger(w, hx, hy + 1, 0.9);
+        dagger(w, hx - 1, hy - 2, -0.2, 4);
       }
     } else if (id === 'kaplan') {
       const tilt = wpn === 'wind' || wpn === 'strike' ? 2 : 0;
       staff(w, hx + sh, hy + (wpn === 'wind' ? -1 : 0), tilt, wpn === 'strike');
     } else if (id === 'inzynier') {
-      const ang = { idle: -1.25, wind: -2.5, strike: -0.15, follow: 0.75 }[wpn];
-      wrench(w, hx + sh, hy, ang);
+      if (wpn === 'wind') wrench(w, hx, hy - 4, -1.62);
+      else wrench(w, hx + sh, hy, { idle: -1.3, strike: -0.15, follow: 0.75 }[wpn]);
     }
-  });
+  };
+  layer(b, weapon);
+  if (id === 'rycerz' && a !== 'dash') layer(b, (w) => shield(w, bkx - 3, bky - 2, pal));
 
   // --- smugi i efekty ataku ---
   if (a === 'attack') {
     const light = '#ffffff';
     if (id === 'rycerz' || id === 'inzynier') {
-      if (wpn === 'strike') smear(fx, hx - 1, hy + 1, 8, -2.4, -0.3, light, acc[3]);
-      if (wpn === 'follow') smear(fx, hx - 1, hy + 1, 8, -0.6, 0.6, acc[3], acc[2]);
+      if (wpn === 'strike') smear(fx, hx - 2, hy + 1, 7, -1.9, -0.45, acc[4], acc[3]);
+      if (wpn === 'follow') smear(fx, hx - 2, hy + 1, 7, -0.3, 0.35, acc[3], acc[2]);
     } else if (id === 'lotrzyk' && wpn !== 'wind') {
       fx.rect(hx + 3, hy - 1 + (wpn === 'follow' ? 2 : 0), 4, 1, wpn === 'strike' ? light : acc[3]);
       fx.rect(hx + 4, hy - 3 + (wpn === 'follow' ? 2 : 0), 2, 1, acc[3]);
