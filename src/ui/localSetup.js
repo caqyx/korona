@@ -6,7 +6,7 @@ import { connectedPads } from '../input/gamepad.js';
 const MAX = MATCH.maxPlayersLocal;
 
 /** Ekran konfiguracji trybu lokalnego (2–8 graczy: ludzie i boty). */
-export function showLocalSetup(nick, onStart, onBack) {
+export function showLocalSetup(nick, onStart, onBack, firstDevice = 'kbm') {
   const devOptions = () => {
     const pads = connectedPads();
     return [
@@ -18,7 +18,7 @@ export function showLocalSetup(nick, onStart, onBack) {
     ];
   };
   const slots = [
-    { nick: nick || 'Gracz 1', skin: 'rycerz', device: 'kbm' },
+    { nick: nick || 'Gracz 1', skin: 'rycerz', device: firstDevice },
     { nick: 'Bot 1', skin: 'lucznik', device: 'bot' },
   ];
   const render = () => {

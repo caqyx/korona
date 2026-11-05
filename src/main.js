@@ -1,77 +1,57 @@
-import { $, showScreen, setOverlay } from './ui/dom.js';
-import { createGameView } from './ui/gameView.js';
-import { createLocalGame } from './ui/localGame.js';
-import { showLocalSetup } from './ui/localSetup.js';
-import { showSummary } from './ui/summary.js';
-import { installKeyboard, createKeyboardMouse, createKeyboard2 } from './input/keyboard.js';
-import { createGamepad } from './input/gamepad.js';
-import { createTouch, isTouchDevice } from './input/touch.js';
-import { createBotDevice } from './input/bot.js';
-import { unlockAudio } from './audio/sfx.js';
-import { setupPwa, keepAwake } from './ui/pwa.js';
-import { startOnlineUi } from './ui/onlineUi.js';
+/**
+ * Punkt wejścia: tylko lekkie menu startowe. Rdzeń gry (renderer, symulacja, sieć, audio)
+ * ładuje się dopiero po kliknięciu „Tryb lokalny” / „Stwórz pokój” / „Dołącz kodem”.
+ */
+import '@fontsource/pixelify-sans/400.css';
+import './ui/style.css';
+import { $, showScreen } from './ui/dom.js';
+import { setupPwa } from './ui/pwa.js';
+import { hasSupabaseConfig } from './net/supabaseConfig.js';
 
-const canvas = /** @type {HTMLCanvasElement} */ ($('#game'));
-const touchRoot = $('#touch');
 const params = new URLSearchParams(location.search);
-
-installKeyboard(canvas);
-const gameView = createGameView(canvas, 'local');
-gameView.start();
-let touchDevice = /** @type {any} */ (null);
-const getTouch = () => (touchDevice ??= createTouch(touchRoot));
-
 const nickInput = /** @type {HTMLInputElement} */ ($('#nick'));
 nickInput.value = safeGet('korona.nick') || '';
 nickInput.addEventListener('change', () => safeSet('korona.nick', nickInput.value.trim()));
-
-window.addEventListener('pointerdown', unlockAudio, { once: true });
-window.addEventListener('keydown', unlockAudio, { once: true });
+const joinParam = params.get('join');
+if (joinParam) /** @type {HTMLInputElement} */ ($('#join-code')).value = joinParam.toUpperCase();
+$('#transport-info').textContent =
+  hasSupabaseConfig() && params.get('transport') !== 'local' ? 'Online przez Supabase Realtime + WebRTC' : 'Online przez transport lokalny (karty tej przeglądarki)';
 setupPwa($('#btn-install'));
 
-/** Tworzy urządzenie wejścia z nazwy. */
-function makeDevice(name, i) {
-  if (name === 'kbm') return createKeyboardMouse(gameView);
-  if (name === 'kb2') return createKeyboard2();
-  if (name.startsWith('pad')) return createGamepad(Number(name.slice(3)));
-  if (name === 'touch') return getTouch();
-  return createBotDevice(1000 + i * 77);
+/** @type {Promise<ReturnType<typeof import('./ui/core.js').createCore>>|null} */
+let corePromise = null;
+function loadCore() {
+  corePromise ??= import('./ui/core.js').then((m) => m.createCore());
+  return corePromise;
 }
 
-function backToMenu() {
-  gameView.setSource(null);
-  touchRoot.classList.add('hidden');
-  setOverlay(null);
-  keepAwake(false);
-  showScreen('#screen-start');
+/** Klik w menu: pokazuje stan ładowania i wywołuje akcję rdzenia. */
+function withCore(btn, action) {
+  return async () => {
+    const label = btn.textContent;
+    btn.classList.add('loading');
+    btn.textContent = 'Ładowanie…';
+    try {
+      action(await loadCore());
+    } catch (e) {
+      $('#start-msg').textContent = 'Nie udało się wczytać gry: ' + (/** @type {any} */ (e)?.message || e);
+      corePromise = null;
+    } finally {
+      btn.classList.remove('loading');
+      btn.textContent = label;
+    }
+  };
 }
 
-function startLocal(slots) {
-  const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i) }));
-  touchRoot.classList.toggle('hidden', !slots.some((s) => s.device === 'touch'));
-  gameView.cam.mode = 'fit';
-  const target = Number(params.get('target')) || undefined;
-  const game = createLocalGame({ slots: players, seed: (Date.now() & 0xffffffff) >>> 0, targetScore: target, speed: Number(params.get('speed')) || 1 }, (finalState) => {
-    touchRoot.classList.add('hidden');
-    keepAwake(false);
-    showSummary(finalState, { canRematch: true, onRematch: () => startLocal(slots), onBack: backToMenu });
-  });
-  window.__korona = { mode: 'local', getState: () => game.state };
-  gameView.setSource(game);
-  showScreen(null);
-  keepAwake(true);
+$('#btn-local').onclick = withCore($('#btn-local'), (core) => core.openLocal());
+$('#btn-create').onclick = withCore($('#btn-create'), (core) => core.enterOnline(true));
+$('#btn-join').onclick = withCore($('#btn-join'), (core) => core.enterOnline(false));
+$('#join-code').addEventListener('keydown', (e) => /** @type {KeyboardEvent} */ (e).key === 'Enter' && $('#btn-join').click());
+// Rozgrzewka: pobierz rdzeń, gdy użytkownik zbliża się do przycisku (nie blokuje startu).
+for (const id of ['#btn-local', '#btn-create', '#btn-join']) {
+  $(id).addEventListener('pointerenter', () => loadCore().catch(() => {}), { once: true });
+  $(id).addEventListener('touchstart', () => loadCore().catch(() => {}), { once: true, passive: true });
 }
-
-$('#btn-local').onclick = () => {
-  const defaultDev = isTouchDevice() ? 'touch' : 'kbm';
-  showLocalSetup(nickInput.value.trim(), startLocal, backToMenu);
-  void defaultDev;
-};
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'Escape' && window.__korona?.mode === 'local') window.__korona.togglePause?.();
-});
-
-startOnlineUi({ gameView, nickInput, touchRoot, getTouch, params, backToMenu });
 showScreen('#screen-start');
 
 function safeGet(k) {

@@ -15,6 +15,11 @@ export function unlockAudio() {
   master = ac.createGain();
   master.gain.value = 0.35;
   master.connect(ac.destination);
+  // kontekst utworzony po asynchronicznym doładowaniu może być wstrzymany — wznów przy interakcji
+  const resume = () => ac?.state === 'suspended' && ac.resume().catch(() => {});
+  window.addEventListener('pointerdown', resume);
+  window.addEventListener('keydown', resume);
+  resume();
 }
 
 /** @param {boolean} m */
@@ -81,4 +86,23 @@ export function play(name) {
   lastPlayed.set(name, now);
   const fn = /** @type {any} */ (SOUNDS)[name];
   if (fn) fn();
+}
+
+/*
+ * --- API muzyki i ustawień (ZAŚLEPKA; implementacja docelowa w toku) ---
+ * setMusicMode('menu'|'hero'|'boss'|'case'|'victory'|'off') — przełącza podkład (płynnie).
+ * getSettings() / setSettings({master, music, sfx, muted}) — głośności 0..1, zapisywane w localStorage.
+ * vibrate(ms|pattern) — haptyka na mobile (respektuje ustawienie).
+ */
+const settings = { master: 0.8, music: 0.5, sfx: 0.8, muted: false, haptics: true };
+export const getSettings = () => ({ ...settings });
+/** @param {Partial<typeof settings>} s */
+export function setSettings(s) {
+  Object.assign(settings, s);
+}
+/** @param {string} _mode */
+export function setMusicMode(_mode) {}
+/** @param {number|number[]} pattern */
+export function vibrate(pattern) {
+  if (settings.haptics && typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
 }

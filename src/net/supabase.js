@@ -1,21 +1,22 @@
 /** Klient Supabase, anonimowe logowanie i API pokoi/wyników. */
-import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_KEY, hasSupabaseConfig } from './supabaseConfig.js';
 
-const URL = import.meta.env?.VITE_SUPABASE_URL || '';
-const KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
-
-export const hasSupabaseConfig = () => !!URL && !!KEY && !URL.includes('YOUR-PROJECT');
+export { hasSupabaseConfig };
 
 let client = /** @type {import('@supabase/supabase-js').SupabaseClient|null} */ (null);
-export function getSupabase() {
+/** SDK Supabase ładowany dynamicznie — tylko gdy gracz wchodzi w tryb online. */
+export async function getSupabase() {
   if (!hasSupabaseConfig()) return null;
-  client ??= createClient(URL, KEY, { auth: { persistSession: true, autoRefreshToken: true }, realtime: { params: { eventsPerSecond: 40 } } });
+  if (!client) {
+    const { createClient } = await import('@supabase/supabase-js');
+    client ??= createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true }, realtime: { params: { eventsPerSecond: 40 } } });
+  }
   return client;
 }
 
 /** Logowanie bez konta (anonymous sign-in) + profil z nickiem. Zwraca userId. @param {string} nick */
 export async function signInAnon(nick) {
-  const sb = getSupabase();
+  const sb = await getSupabase();
   if (!sb) throw new Error('Brak konfiguracji Supabase');
   const { data: sess } = await sb.auth.getSession();
   let user = sess.session?.user ?? null;

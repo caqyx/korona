@@ -30,7 +30,6 @@ const SKIN_INFO = {
 export function startOnlineUi(ctx) {
   const { params } = ctx;
   const useSupabase = hasSupabaseConfig() && params.get('transport') !== 'local';
-  $('#transport-info').textContent = useSupabase ? 'Online przez Supabase Realtime + WebRTC' : 'Online przez transport lokalny (karty tej przeglądarki)';
   /** @type {ReturnType<typeof createSession>|null} */
   let session = null;
   let device = null;
@@ -48,7 +47,7 @@ export function startOnlineUi(ctx) {
     busy = true;
     msg('Mierzę urządzenie…');
     try {
-      const sb = useSupabase ? getSupabase() : null;
+      const sb = useSupabase ? await getSupabase() : null;
       const selfId = sb ? await signInAnon(nick) : randomId();
       const rooms = createRoomsApi(sb);
       const { score } = await measureDevice((s) => step(s, {}), createBenchmarkState);
@@ -175,9 +174,6 @@ export function startOnlineUi(ctx) {
   }
   renderSkins();
 
-  $('#btn-create').onclick = () => enter(true);
-  $('#btn-join').onclick = () => enter(false);
-  /** @type {HTMLInputElement} */ ($('#join-code')).addEventListener('keydown', (e) => e.key === 'Enter' && enter(false));
   $('#btn-ready').onclick = () => {
     if (!session) return;
     session.setReady(!session.ready);
@@ -203,8 +199,7 @@ export function startOnlineUi(ctx) {
       $('#lobby-msg').textContent = `Kod: ${code}`;
     }
   };
-  const joinParam = params.get('join');
-  if (joinParam) /** @type {HTMLInputElement} */ ($('#join-code')).value = joinParam.toUpperCase();
+  return { enter };
 }
 
 function randomId() {
