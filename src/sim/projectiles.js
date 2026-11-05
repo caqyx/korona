@@ -1,0 +1,97 @@
+import { PROJECTILE_MAX, HERO } from './config.js';
+import { nextId } from './state.js';
+import { hitsPillar, outsideArena } from './physics.js';
+import { bossRadius, hurtBoss, hurtHero, damageMinion, shieldBlocks } from './combat.js';
+import { SKINS } from './config.js';
+
+/**
+ * @typedef {Object} Projectile
+ * @property {number} id
+ * @property {'hero'|'boss'} team
+ * @property {string} ownerId
+ * @property {string} kind
+ * @property {number} x
+ * @property {number} y
+ * @property {number} vx
+ * @property {number} vy
+ * @property {number} r
+ * @property {number} range
+ * @property {number} traveled
+ * @property {number} dmg
+ * @property {boolean} pierce
+ * @property {(string|number)[]} hit
+ */
+
+/** @param {import('./state.js').MatchState} state @param {Partial<Projectile>} p */
+export function spawnProjectile(state, p) {
+  if (state.projectiles.length >= PROJECTILE_MAX) return null;
+  const pr = /** @type {Projectile} */ ({ id: nextId(state), team: 'hero', kind: 'bolt', r: 0.2, range: 8, traveled: 0, dmg: 1, pierce: false, hit: [], vx: 0, vy: 0, x: 0, y: 0, ownerId: '', ...p });
+  state.projectiles.push(pr);
+  return pr;
+}
+
+/** @param {import('./state.js').MatchState} state @param {number} dt */
+export function updateProjectiles(state, dt) {
+  const keep = [];
+  const bossP = state.players.find((p) => p.boss && !p.boss.dying) || null;
+  for (const pr of state.projectiles) {
+    pr.x += pr.vx * dt;
+    pr.y += pr.vy * dt;
+    pr.traveled += Math.hypot(pr.vx, pr.vy) * dt;
+    if (pr.traveled > pr.range || outsideArena(pr.x, pr.y, 0)) continue;
+    if (!pr.pierce && hitsPillar(pr.x, pr.y, pr.r)) continue;
+    const alive = pr.team === 'hero' ? heroProjectileHits(state, pr, bossP) : bossProjectileHits(state, pr, bossP);
+    if (alive) keep.push(pr);
+  }
+  state.projectiles = keep;
+}
+
+/** @returns {boolean} czy pocisk leci dalej */
+function heroProjectileHits(state, pr, bossP) {
+  if (bossP && !pr.hit.includes(bossP.id) && Math.hypot(pr.x - bossP.x, pr.y - bossP.y) <= bossRadius() + pr.r) {
+    hurtBoss(state, bossP, pr.dmg, pr.ownerId);
+    if (!pr.pierce) return false;
+    pr.hit.push(bossP.id);
+  }
+  for (const m of state.minions) {
+    if (m.hp <= 0 || pr.hit.includes(m.id)) continue;
+    if (Math.hypot(pr.x - m.x, pr.y - m.y) <= m.r + pr.r) {
+      damageMinion(state, m, pr.dmg);
+      if (!pr.pierce) return false;
+      pr.hit.push(m.id);
+    }
+  }
+  return true;
+}
+
+/** @returns {boolean} */
+function bossProjectileHits(state, pr, bossP) {
+  for (const h of state.players) {
+    if (h.boss || !h.alive) continue;
+    if (Math.hypot(pr.x - h.x, pr.y - h.y) > HERO.radius + pr.r) continue;
+    if (shieldBlocks(h, pr.x - pr.vx, pr.y - pr.vy) && bossP) {
+      reflect(state, pr, h, bossP);
+      return true;
+    }
+    if (hurtHero(state, h, pr.dmg, pr.ownerId, pr.x - pr.vx, pr.y - pr.vy)) return false;
+  }
+  return true;
+}
+
+/** Tarcza Rycerza odbija pocisk w bossa. */
+function reflect(state, pr, knight, bossP) {
+  const dx = bossP.x - pr.x;
+  const dy = bossP.y - pr.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const sp = Math.max(12, Math.hypot(pr.vx, pr.vy));
+  pr.team = 'hero';
+  pr.ownerId = knight.id;
+  pr.vx = (dx / d) * sp;
+  pr.vy = (dy / d) * sp;
+  pr.dmg = SKINS.rycerz.ability.reflectDmg;
+  pr.traveled = 0;
+  pr.range = d + 4;
+  pr.kind = 'reflected';
+  pr.hit = [];
+  state.events.push({ t: 'reflect', id: knight.id, x: pr.x, y: pr.y });
+}
