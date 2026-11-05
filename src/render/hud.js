@@ -249,8 +249,8 @@ function drawCase(ctx, cam, view, time, sound, u) {
     ctx.fillStyle = grad;
     ctx.fillRect(Math.round(x + 5), top + 2, cw - 10, ch - 4);
     const spr = getBossSprite(strip[i], isWin ? 'cast' : 'idle', Math.floor(time * 6));
-    const sc = Math.max(1, Math.floor((ch * 0.62) / spr.h));
-    ctx.drawImage(spr.img, Math.round(x + cw / 2 - (spr.w * sc) / 2), Math.round(top + ch * 0.08), spr.w * sc, spr.h * sc);
+    const sc = Math.max(1, Math.floor(Math.min((ch * 0.78) / spr.h, (cw - 12) / spr.w)));
+    ctx.drawImage(spr.img, Math.round(x + cw / 2 - (spr.w * sc) / 2), Math.round(top + 4), spr.w * sc, spr.h * sc);
     ctx.fillStyle = rar.color;
     ctx.fillRect(Math.round(x + 5), top + ch - 7, cw - 10, 5);
     text(ctx, def.name, x + cw / 2, top + ch - 13, Math.round(cw / 9), '#ffffff', 'center');
