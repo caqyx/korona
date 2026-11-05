@@ -31,6 +31,7 @@ import { hurtHero } from './combat.js';
  * @property {number} stun
  * @property {number} rMax    dla 'ring'
  * @property {string[]} hit
+ * @property {number} born    tick utworzenia (telegraf nie skraca się w kroku utworzenia)
  */
 
 /** @param {import('./state.js').MatchState} state @param {Partial<Zone>} z @returns {Zone} */
@@ -59,6 +60,7 @@ export function addZone(state, z) {
     hit: [],
     ...z,
   });
+  zone.born = state.tick;
   zone.warnTotal = zone.warn;
   zone.lifeTotal = zone.life;
   state.zones.push(zone);
@@ -102,8 +104,8 @@ export function updateZones(state, dt) {
   const keep = [];
   for (const z of state.zones) {
     if (z.warn > 0) {
-      z.warn -= dt;
-      if (z.warn <= 0) {
+      if (z.born !== state.tick) z.warn -= dt;
+      if (z.warn <= 1e-9) {
         z.warn = 0;
         if (z.dmg > 0 || z.slow > 0) state.events.push({ t: 'zoneFire', kind: z.kind, x: z.x, y: z.y, r: z.r });
       } else {
