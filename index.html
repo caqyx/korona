@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#07070d" />
+    <meta name="description" content="KORONA — arena PvP: zabij bossa, przejmij koronę, zostań bossem." />
+    <link rel="icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <title>KORONA</title>
+    <link rel="stylesheet" href="/src/ui/style.css" />
+  </head>
+  <body>
+    <canvas id="game" aria-label="Arena"></canvas>
+    <div id="touch" class="touch hidden"></div>
+
+    <section id="screen-start" class="screen">
+      <h1 class="logo">KORONA</h1>
+      <p class="tag">Zabij bossa. Przejmij koronę. Zostań bossem.</p>
+      <label class="field">Nick <input id="nick" maxlength="16" autocomplete="off" placeholder="Twój nick" /></label>
+      <div class="row">
+        <button id="btn-create" class="primary">Stwórz pokój</button>
+        <input id="join-code" maxlength="5" placeholder="KOD" class="code-input" autocomplete="off" />
+        <button id="btn-join">Dołącz kodem</button>
+      </div>
+      <div class="row">
+        <button id="btn-local">Tryb lokalny (offline)</button>
+        <button id="btn-install" class="hidden">Zainstaluj</button>
+      </div>
+      <p id="start-msg" class="msg"></p>
+      <p class="small" id="transport-info"></p>
+    </section>
+
+    <section id="screen-lobby" class="screen hidden">
+      <h2>Pokój <span id="room-code" class="code"></span> <button id="btn-copy" class="small-btn">Kopiuj / udostępnij</button></h2>
+      <ul id="lobby-players" class="players"></ul>
+      <div class="skins" id="lobby-skins"></div>
+      <div class="row">
+        <button id="btn-ready">Gotowy</button>
+        <button id="btn-start" class="primary hidden">Start</button>
+        <button id="btn-leave">Wyjdź</button>
+      </div>
+      <p id="lobby-msg" class="msg"></p>
+    </section>
+
+    <section id="screen-local" class="screen hidden">
+      <h2>Tryb lokalny</h2>
+      <p class="small">Klawiatura 1: WASD + mysz (LPM atak, PPM/F umiejętność, Spacja dash, Q/E/R boss).<br />Klawiatura 2: IJKL ruch, U atak, O umiejętność, P dash, 7/8/9 boss. Pady: RT atak, A dash, RB umiejętność, X/Y/B boss.</p>
+      <div id="local-slots" class="slots"></div>
+      <div class="row">
+        <button id="btn-local-add">+ Gracz</button>
+        <button id="btn-local-start" class="primary">Graj</button>
+        <button id="btn-local-back">Wróć</button>
+      </div>
+    </section>
+
+    <section id="screen-summary" class="screen hidden">
+      <h2 id="summary-title">Koniec meczu</h2>
+      <div id="podium" class="podium"></div>
+      <table id="summary-table" class="stats"></table>
+      <div class="row">
+        <button id="btn-rematch" class="primary">Rewanż</button>
+        <button id="btn-summary-back">Menu</button>
+      </div>
+      <p id="summary-msg" class="msg"></p>
+    </section>
+
+    <div id="overlay" class="overlay hidden"><div id="overlay-text"></div></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
