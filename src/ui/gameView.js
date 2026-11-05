@@ -2,7 +2,7 @@ import { createRenderer } from '../render/renderer.js';
 import { createCamera, updateCamera } from '../render/camera.js';
 import { createFx, applyEvents, updateFx } from '../render/fx.js';
 import { slotColor } from '../render/palette.js';
-import { play } from '../audio/sfx.js';
+import { play, vibrate, setMusicMode } from '../audio/sfx.js';
 
 /**
  * @typedef {Object} FrameSource
@@ -17,6 +17,7 @@ export function createGameView(canvas, mode) {
   const renderer = createRenderer(canvas);
   const cam = createCamera();
   cam.mode = mode === 'local' ? 'fit' : 'follow';
+  canvas.style.imageRendering = 'pixelated';
   const fx = createFx();
   /** @type {FrameSource|null} */
   let source = null;
@@ -24,6 +25,13 @@ export function createGameView(canvas, mode) {
   let last = 0;
   let lastFrame = /** @type {any} */ (null);
   let time = 0;
+  let music = '';
+  /** Przełącza podkład tylko przy zmianie trybu. @param {string} m */
+  const setMusic = (m) => {
+    if (m === music) return;
+    music = m;
+    setMusicMode(m);
+  };
 
   function loop(now) {
     raf = requestAnimationFrame(loop);
@@ -31,21 +39,26 @@ export function createGameView(canvas, mode) {
     last = now;
     time += dt;
     const [w, h] = renderer.resize();
-    if (!source) return;
+    if (!source) {
+      setMusic('menu');
+      return;
+    }
     const fr = source.frame(dt, cam);
     if (fr) {
       const colorOf = (id) => {
         const p = fr.view.players.find((x) => x.id === id);
         return p ? slotColor(p.slot) : '#fff';
       };
-      if (fr.events.length) applyEvents(fx, fr.events, fr.view, fr.meIds[0] ?? null, colorOf, play);
+      if (fr.events.length) applyEvents(fx, fr.events, fr.view, fr.meIds[0] ?? null, colorOf, { sound: play, vibrate });
       if (fx.hitStop <= 0 || !lastFrame) lastFrame = fr;
     }
     updateFx(fx, dt);
     if (!lastFrame) return;
     const me = lastFrame.view.players.find((p) => p.id === lastFrame.meIds[0]);
     updateCamera(cam, w, h, me && me.alive ? me : null, dt);
-    renderer.draw(lastFrame.view, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode, sound: play });
+    const v = lastFrame.view;
+    setMusic(v.phase === 'ended' ? 'victory' : v.phase === 'transition' ? 'case' : me?.boss ? 'boss' : 'hero');
+    renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play });
   }
 
   return {
@@ -55,6 +68,7 @@ export function createGameView(canvas, mode) {
     setSource(s) {
       source = s;
       lastFrame = null;
+      Object.assign(fx, createFx());
     },
     start() {
       if (!raf) raf = requestAnimationFrame(loop);

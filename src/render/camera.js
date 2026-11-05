@@ -1,36 +1,75 @@
 import { MATCH } from '../sim/config.js';
+import { PPM } from './sprites.js';
 
 /**
- * Kamera: mapuje metry na piksele. mode 'fit' pokazuje całą arenę (tryb lokalny),
- * 'follow' trzyma własną postać w centrum z widokiem ~22 m szerokości (online).
+ * Kamera pixel art. Świat rysowany jest w buforze o niskiej rozdzielczości (PPM pikseli sztuki
+ * na metr), a bufor powiększany na ekran współczynnikiem S bez wygładzania.
+ *  - mode 'fit': cała arena (tryb lokalny),
+ *  - mode 'follow': kamera za graczem z lekkim wyprzedzeniem w stronę celowania (online).
  */
 export function createCamera() {
-  return { x: 0, y: 0, scale: 30, w: 1, h: 1, mode: /** @type {'fit'|'follow'} */ ('fit'), shakeX: 0, shakeY: 0 };
+  return {
+    x: 0,
+    y: 0,
+    /** piksele ekranu na piksel sztuki */
+    S: 2,
+    /** piksele ekranu na metr (S * PPM) — dla HUD i myszy */
+    scale: 2 * PPM,
+    w: 1,
+    h: 1,
+    aw: 1,
+    ah: 1,
+    mode: /** @type {'fit'|'follow'} */ ('fit'),
+    shakeX: 0,
+    shakeY: 0,
+  };
 }
 
-/** @param {ReturnType<typeof createCamera>} cam @param {number} w @param {number} h @param {{x:number,y:number}|null} target */
+/** Zaokrągla skalę: powyżej 2,5 do całkowitych (równe piksele), niżej do 0,25. @param {number} s */
+function snapScale(s) {
+  if (s >= 2.5) return Math.floor(s);
+  return Math.max(1, Math.floor(s * 4) / 4);
+}
+
+/**
+ * @param {ReturnType<typeof createCamera>} cam @param {number} w @param {number} h
+ * @param {{x:number,y:number,fx?:number,fy?:number}|null} target @param {number} dt
+ */
 export function updateCamera(cam, w, h, target, dt) {
   cam.w = w;
   cam.h = h;
-  const fitScale = Math.min(w, h) / (MATCH.arenaRadius * 2 + 2);
+  const fitS = Math.min(w, h) / ((MATCH.arenaRadius * 2 + 2) * PPM);
+  let S;
   if (cam.mode === 'fit' || !target) {
-    cam.scale = fitScale;
+    S = snapScale(fitS);
     cam.x = 0;
     cam.y = 0;
-    return;
+  } else {
+    S = snapScale(Math.max(fitS, Math.min(w, h * 1.6) / (22 * PPM)));
+    const tx = target.x + (target.fx || 0) * 1.6;
+    const ty = target.y + (target.fy || 0) * 1.6;
+    const k = 1 - Math.exp(-6 * dt);
+    cam.x += (tx - cam.x) * k;
+    cam.y += (ty - cam.y) * k;
   }
-  cam.scale = Math.max(fitScale, Math.min(w, h * 1.6) / 22);
-  const k = 1 - Math.exp(-8 * dt);
-  cam.x += (target.x - cam.x) * k;
-  cam.y += (target.y - cam.y) * k;
+  cam.S = S;
+  cam.scale = S * PPM;
+  cam.aw = Math.ceil(w / S);
+  cam.ah = Math.ceil(h / S);
 }
 
-/** @param {ReturnType<typeof createCamera>} cam */
+/** Świat -> piksele sztuki (całkowite, przyciągnięte do siatki). @param {ReturnType<typeof createCamera>} cam */
+export function worldToArt(cam, x, y) {
+  return [Math.round((x - cam.x) * PPM + cam.aw / 2 + cam.shakeX), Math.round((y - cam.y) * PPM + cam.ah / 2 + cam.shakeY)];
+}
+
+/** Świat -> piksele ekranu (dla napisów HUD). @param {ReturnType<typeof createCamera>} cam */
 export function worldToScreen(cam, x, y) {
-  return [(x - cam.x) * cam.scale + cam.w / 2 + cam.shakeX, (y - cam.y) * cam.scale + cam.h / 2 + cam.shakeY];
+  const [ax, ay] = worldToArt(cam, x, y);
+  return [ax * cam.S, ay * cam.S];
 }
 
-/** @param {ReturnType<typeof createCamera>} cam */
+/** Ekran -> świat (celowanie myszą). @param {ReturnType<typeof createCamera>} cam */
 export function screenToWorld(cam, sx, sy) {
-  return [(sx - cam.w / 2 - cam.shakeX) / cam.scale + cam.x, (sy - cam.h / 2 - cam.shakeY) / cam.scale + cam.y];
+  return [(sx / cam.S - cam.aw / 2 - cam.shakeX) / PPM + cam.x, (sy / cam.S - cam.ah / 2 - cam.shakeY) / PPM + cam.y];
 }
