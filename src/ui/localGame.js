@@ -1,13 +1,13 @@
 import { createMatchState, step, cloneState } from '../sim/index.js';
-import { DT } from '../sim/config.js';
+import { DT, MATCH } from '../sim/config.js';
 
 /**
- * Tryb lokalny: 2–4 graczy na jednym ekranie, bez sieci i Supabase.
+ * Tryb lokalny: 2–8 graczy (ludzie + boty) na jednym ekranie, bez sieci i Supabase.
  * @param {{slots:{id:string,nick:string,skin:string,device:{read:Function}}[], seed:number, targetScore?:number, speed?:number}} opts
  * @param {(state:any)=>void} onEnd
  */
 export function createLocalGame(opts, onEnd) {
-  const state = createMatchState({ seed: opts.seed, players: opts.slots.map((s) => ({ id: s.id, nick: s.nick, skin: s.skin })), targetScore: opts.targetScore });
+  const state = createMatchState({ seed: opts.seed, players: opts.slots.map((s) => ({ id: s.id, nick: s.nick, skin: s.skin })), targetScore: opts.targetScore, maxPlayers: MATCH.maxPlayersLocal });
   let acc = 0;
   let ended = false;
   let paused = false;

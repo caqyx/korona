@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { step } from '../../src/sim/step.js';
-import { spawnPoint } from '../../src/sim/state.js';
-import { promoteToBoss, drawBossType, bindRng } from '../../src/sim/rules.js';
+import { spawnPoint, createMatchState } from '../../src/sim/state.js';
+import { promoteToBoss, drawBossType, bindRng, bossMaxHp } from '../../src/sim/rules.js';
 import { hurtBoss, hurtHero, feverMultiplier } from '../../src/sim/combat.js';
 import { makeRng } from '../../src/sim/rng.js';
-import { DT, MATCH, SCORE, BOSS_COMMON, BOSSES, BOSS_IDS, FEVER } from '../../src/sim/config.js';
+import { DT, MATCH, SCORE, BOSS_COMMON, BOSSES, BOSS_IDS, FEVER, CASE, RARITY } from '../../src/sim/config.js';
 import { makeMatch, bossArena, run, inp, BTN } from './sim-helpers.js';
 
 const isSpawnPoint = (x, y) => Array.from({ length: MATCH.spawnCount }, (_, i) => spawnPoint(i)).some(([sx, sy]) => Math.abs(sx - x) < 1e-6 && Math.abs(sy - y) < 1e-6);
@@ -47,7 +47,7 @@ describe('crown pickup at center', () => {
     expect(a.boss).toBe(null);
   });
 
-  it('transition lasts 1.5 s real time at 0.3 world speed, then the player becomes boss with full HP', () => {
+  it('transition lasts MATCH.transitionTime real time at 0.3 world speed, then the player becomes boss with full HP', () => {
     const state = makeMatch([{ id: 'A' }, { id: 'B' }, { id: 'C' }]);
     const a = state.players[0];
     a.x = 0.5;
@@ -240,31 +240,56 @@ describe('fever', () => {
 });
 
 describe('drawBossType', () => {
-  it('never repeats the previous type and covers all 3 others', () => {
+  it('never repeats the previous type in 1000 draws and covers all others', () => {
     for (const last of BOSS_IDS) {
-      const rng = makeRng({ s: 1000 + last.length });
+      const rng = makeRng({ s: 1 });
       const seen = new Set();
       for (let i = 0; i < 1000; i++) {
-        const { type, choices } = drawBossType(rng, last);
+        const { type, strip, win, offset } = drawBossType(rng, last);
         expect(type).not.toBe(last);
-        expect(choices).toHaveLength(3);
-        expect(choices).not.toContain(last);
-        expect(choices).toContain(type);
+        expect(strip).toHaveLength(CASE.stripLength);
+        expect(strip[win]).toBe(type);
+        expect(strip).not.toContain(last);
+        expect(offset).toBeGreaterThan(0);
+        expect(offset).toBeLessThan(1);
         seen.add(type);
       }
       expect([...seen].sort()).toEqual(BOSS_IDS.filter((t) => t !== last).sort());
     }
   });
 
-  it('chained draws (last = previous result) never repeat', () => {
-    const rng = makeRng({ s: 7 });
+  it('rarer bosses are drawn less often (weights from RARITY)', () => {
+    const rng = makeRng({ s: 9 });
+    const n = {};
+    for (let i = 0; i < 20000; i++) {
+      const { type } = drawBossType(rng, null);
+      n[type] = (n[type] || 0) + 1;
+    }
+    expect(n.kolos).toBeGreaterThan(n.cien);
+    expect(n.cien).toBeGreaterThan(n.szron);
+    expect(n.szron).toBeGreaterThan(n.smok);
+    const total = Object.values(RARITY).reduce((a, r) => a + r.weight * 2, 0);
+    expect(n.smok / 20000).toBeCloseTo(RARITY.red.weight / total, 1);
+  });
+
+  it('chained draws never repeat', () => {
+    const rng = makeRng({ s: 3 });
     let last = null;
     for (let i = 0; i < 1000; i++) {
-      const { type, choices } = drawBossType(rng, last);
+      const { type } = drawBossType(rng, last);
       expect(type).not.toBe(last);
-      expect(choices).toContain(type);
-      expect(new Set(choices).size).toBe(choices.length);
       last = type;
+    }
+  });
+});
+
+describe('boss HP scales with player count (local mode up to 8)', () => {
+  it('HP = 120 × heroes × hpMul for 2..8 players', () => {
+    for (let n = 2; n <= MATCH.maxPlayersLocal; n++) {
+      const players = Array.from({ length: n }, (_, i) => ({ id: `p${i}`, nick: `p${i}`, skin: 'rycerz' }));
+      const state = createMatchState({ seed: 1, players, countdown: 0, maxPlayers: MATCH.maxPlayersLocal });
+      expect(state.players).toHaveLength(n);
+      for (const type of BOSS_IDS) expect(bossMaxHp(state, 'p0', type)).toBe(Math.round(BOSS_COMMON.hpPerHero * (n - 1) * BOSSES[type].hpMul));
     }
   });
 });

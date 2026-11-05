@@ -20,6 +20,9 @@ import { SKINS } from './config.js';
  * @property {number} dmg
  * @property {boolean} pierce
  * @property {(string|number)[]} hit
+ * @property {number} [stun]       ogłuszenie przy trafieniu (Sieć)
+ * @property {boolean} [boomerang] wraca do właściciela po połowie zasięgu (Kosa)
+ * @property {boolean} [back]
  */
 
 /** @param {import('./state.js').MatchState} state @param {Partial<Projectile>} p */
@@ -38,6 +41,7 @@ export function updateProjectiles(state, dt) {
     pr.x += pr.vx * dt;
     pr.y += pr.vy * dt;
     pr.traveled += Math.hypot(pr.vx, pr.vy) * dt;
+    if (pr.boomerang && steerBack(state, pr)) continue;
     if (pr.traveled > pr.range || outsideArena(pr.x, pr.y, 0)) continue;
     if (!pr.pierce && hitsPillar(pr.x, pr.y, pr.r)) continue;
     const alive = pr.team === 'hero' ? heroProjectileHits(state, pr, bossP) : bossProjectileHits(state, pr, bossP);
@@ -73,9 +77,34 @@ function bossProjectileHits(state, pr, bossP) {
       reflect(state, pr, h, bossP);
       return true;
     }
-    if (hurtHero(state, h, pr.dmg, pr.ownerId, pr.x - pr.vx, pr.y - pr.vy)) return false;
+    if (pr.hit.includes(h.id)) continue;
+    if (hurtHero(state, h, pr.dmg, pr.ownerId, pr.x - pr.vx, pr.y - pr.vy)) {
+      if (pr.stun) h.stunT = Math.max(h.stunT, pr.stun);
+      if (!pr.pierce) return false;
+      pr.hit.push(h.id);
+    }
   }
   return true;
+}
+
+/** Bumerang: po połowie zasięgu zawraca do właściciela. Zwraca true, gdy wrócił. */
+function steerBack(state, pr) {
+  if (!pr.back && pr.traveled >= pr.range / 2) {
+    pr.back = true;
+    pr.hit = [];
+  }
+  if (!pr.back) return false;
+  const owner = state.players.find((p) => p.id === pr.ownerId && p.boss);
+  if (!owner) return true;
+  const dx = owner.x - pr.x;
+  const dy = owner.y - pr.y;
+  const d = Math.hypot(dx, dy);
+  if (d < bossRadius()) return true;
+  const sp = Math.hypot(pr.vx, pr.vy);
+  pr.vx = (dx / d) * sp;
+  pr.vy = (dy / d) * sp;
+  pr.traveled = Math.min(pr.traveled, pr.range - 0.01);
+  return false;
 }
 
 /** Tarcza Rycerza odbija pocisk w bossa. */

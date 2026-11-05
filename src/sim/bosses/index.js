@@ -5,8 +5,12 @@ import { kolos } from './kolos.js';
 import { cien } from './cien.js';
 import { nekromanta } from './nekromanta.js';
 import { burza } from './burza.js';
+import { smok } from './smok.js';
+import { szron } from './szron.js';
+import { pajeczyca } from './pajeczyca.js';
+import { widmo } from './widmo.js';
 
-export const BOSS_KITS = { kolos, cien, nekromanta, burza };
+export const BOSS_KITS = { kolos, cien, nekromanta, burza, smok, szron, pajeczyca, widmo };
 export const BOSS_ABILITY_KEYS = /** @type {const} */ (['atk', 'q', 'e', 'r']);
 
 /**
@@ -22,6 +26,7 @@ export function updateBoss(state, p, input, pressed, dt, rng) {
   for (const k of BOSS_ABILITY_KEYS) b.cd[k] = Math.max(0, b.cd[k] - dt);
   b.invisT = Math.max(0, b.invisT - dt);
   aimAt(p, input.aimX, input.aimY);
+  if (state.phase === 'playing') /** @type {any} */ (kit).passive?.(state, p, dt);
   if (b.channel) {
     kit.channel(state, p, dt);
     b.channel.t -= dt;

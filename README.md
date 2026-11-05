@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Otwórz http://localhost:5173. Bez kluczy Supabase tryb online działa przez `LocalTransport` (karty tej samej przeglądarki — otwórz 2–3 karty, stwórz pokój w jednej, dołącz kodem w pozostałych). Tryb lokalny (jeden ekran, 2–4 graczy, boty) działa zawsze, także offline.
+Otwórz http://localhost:5173. Bez kluczy Supabase tryb online działa przez `LocalTransport` (karty tej samej przeglądarki — otwórz 2–3 karty, stwórz pokój w jednej, dołącz kodem w pozostałych). Tryb lokalny (jeden ekran, 2–8 graczy: do 4 ludzi + boty) działa zawsze, także offline.
 
 | Skrypt | Co robi |
 |---|---|

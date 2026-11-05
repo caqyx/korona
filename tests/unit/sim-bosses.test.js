@@ -105,6 +105,59 @@ const CASES = [
     },
   ],
   ['burza', 'r', true, { hero: { x: 4, y: 0 } }, (r, tg) => expect(r.trace[tg].events.some((e) => e.t === 'chain')).toBe(true)],
+  ['smok', 'atk', true, { hero: { x: 4, y: 0 } }],
+  ['smok', 'q', true, { hero: { x: 4, y: 0 } }],
+  [
+    'smok',
+    'e',
+    true,
+    { hero: { x: 6, y: 0 } },
+    (r, tg) => {
+      for (let i = 0; i < tg; i++) expect(r.trace[i].bx).toBeLessThan(1);
+      expect(r.trace[tg].bx).toBeGreaterThan(3);
+    },
+  ],
+  ['smok', 'r', true, { hero: { x: 4, y: 0 } }, (r) => expect(r.newZones.filter((z) => z.kind === 'meteor')).toHaveLength(BOSSES.smok.r.count)],
+  ['szron', 'atk', true, { hero: { x: 4, y: 0 } }],
+  ['szron', 'q', true, { hero: { x: 3, y: 0 } }],
+  ['szron', 'e', true, { hero: { x: 4, y: 0 } }],
+  ['szron', 'r', true, { hero: { x: 4, y: 0 } }],
+  ['pajeczyca', 'atk', true, { hero: { x: 2, y: 0 } }],
+  [
+    'pajeczyca',
+    'q',
+    false,
+    { hero: { x: 4, y: 0 } },
+    (r) => {
+      expect(r.trace.some((s) => s.hit)).toBe(true);
+      expect(r.h.hp).toBe(HERO.hp);
+    },
+  ],
+  ['pajeczyca', 'e', true, { hero: { x: 5, y: 0 } }, (r) => expect(r.boss.x).toBeGreaterThan(2)],
+  [
+    'pajeczyca',
+    'r',
+    false,
+    { hero: { x: -10, y: 0 } },
+    (r, tg) => {
+      for (let i = 0; i < tg; i++) expect(r.trace[i].minions).toBe(0);
+      expect(r.trace[tg].minions).toBe(BOSSES.pajeczyca.r.count);
+    },
+  ],
+  ['widmo', 'atk', true, { hero: { x: 2, y: 0 } }],
+  ['widmo', 'q', true, { hero: { x: 4, y: 0 } }],
+  [
+    'widmo',
+    'e',
+    false,
+    { hero: { x: 3, y: 0 } },
+    (r, tg) => {
+      for (let i = 0; i < tg; i++) expect(r.trace[i].hx).toBeCloseTo(3, 6);
+      expect(r.h.x).toBeGreaterThan(4);
+      expect(r.h.hp).toBe(HERO.hp);
+    },
+  ],
+  ['widmo', 'r', true, { hero: { x: 6, y: 0 } }],
 ];
 
 describe('boss abilities: telegraph, delayed damage, cooldown', () => {
@@ -154,6 +207,29 @@ describe('boss abilities: telegraph, delayed damage, cooldown', () => {
 });
 
 describe('boss passives', () => {
+  it('Widmo heals 6% max HP on hero kill', () => {
+    const { state, boss, heroes } = bossArena('widmo', [{ id: 'H', x: 3, y: 0 }]);
+    boss.boss.hp = boss.boss.maxHp / 2;
+    heroes[0].hp = 1;
+    hurtHero(state, heroes[0], 1, 'B', 0, 0);
+    expect(boss.boss.hp).toBeCloseTo(boss.boss.maxHp * (0.5 + BOSSES.widmo.passive.healOnKill), 6);
+  });
+
+  it('Szron chills heroes it hits (slow 30% for 1.5 s)', () => {
+    const { state, heroes } = bossArena('szron', [{ id: 'H', x: 3, y: 0 }]);
+    hurtHero(state, heroes[0], 1, 'B', 0, 0);
+    expect(heroes[0].slowT).toBeCloseTo(BOSSES.szron.passive.duration, 9);
+    expect(heroes[0].slowMul).toBeCloseTo(1 - BOSSES.szron.passive.slow, 9);
+  });
+
+  it('Smok leaves a telegraphed burning patch every 4 s', () => {
+    const { state } = bossArena('smok', [{ id: 'H', x: 0, y: 12 }]);
+    for (let i = 0; i < Math.round(BOSSES.smok.passive.every / DT) + 2; i++) step(state, {});
+    const ember = state.zones.find((z) => z.kind === 'embers');
+    expect(ember).toBeTruthy();
+    expect(ember.warnTotal).toBeGreaterThanOrEqual(0.4);
+  });
+
   it('Kolos takes 0.85x damage', () => {
     const { state, boss } = bossArena('kolos', [{ id: 'H', x: 0, y: 12 }]);
     hurtBoss(state, boss, 100, 'H');

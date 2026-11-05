@@ -1,9 +1,11 @@
 import { $, esc, showScreen } from './dom.js';
-import { SKINS, SKIN_IDS } from '../sim/config.js';
+import { SKINS, SKIN_IDS, MATCH, BOSS_COMMON } from '../sim/config.js';
 import { slotColor } from '../render/palette.js';
 import { connectedPads } from '../input/gamepad.js';
 
-/** Ekran konfiguracji trybu lokalnego (2–4 graczy). */
+const MAX = MATCH.maxPlayersLocal;
+
+/** Ekran konfiguracji trybu lokalnego (2–8 graczy: ludzie i boty). */
 export function showLocalSetup(nick, onStart, onBack) {
   const devOptions = () => {
     const pads = connectedPads();
@@ -42,11 +44,19 @@ export function showLocalSetup(nick, onStart, onBack) {
         render();
       });
     }
-    /** @type {HTMLButtonElement} */ ($('#btn-local-add')).disabled = slots.length >= 4;
+    /** @type {HTMLButtonElement} */ ($('#btn-local-add')).disabled = slots.length >= MAX;
+    /** @type {HTMLButtonElement} */ ($('#btn-local-fill')).disabled = slots.length >= MAX;
+    const heroes = slots.length - 1;
+    $('#local-info').textContent = `Graczy: ${slots.length}/${MAX} · HP bossa = ${BOSS_COMMON.hpPerHero} × ${heroes} bohaterów = ${BOSS_COMMON.hpPerHero * heroes} (× mnożnik typu)`;
   };
+  const addBot = () => slots.push({ nick: `Bot ${slots.length}`, skin: SKIN_IDS[slots.length % 5], device: 'bot' });
   $('#btn-local-add').onclick = () => {
-    if (slots.length >= 4) return;
-    slots.push({ nick: `Bot ${slots.length}`, skin: SKIN_IDS[slots.length % 5], device: 'bot' });
+    if (slots.length >= MAX) return;
+    addBot();
+    render();
+  };
+  $('#btn-local-fill').onclick = () => {
+    while (slots.length < MAX) addBot();
     render();
   };
   $('#btn-local-start').onclick = () => onStart(slots.map((s) => ({ ...s })));

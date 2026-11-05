@@ -30,7 +30,7 @@ export const nekromanta = {
     fire: (state, p, cast) => {
       for (const [x, y] of cast.data.spots) {
         if (state.minions.length >= C.q.max) break;
-        state.minions.push({ id: nextId(state), ownerId: p.id, x, y, hp: C.q.hp, maxHp: C.q.hp, r: C.q.radius, cd: 0.6, windup: 0, fx: 1, fy: 0 });
+        state.minions.push(makeMinion(state, p.id, x, y, C.q, 'skeleton'));
       }
     },
   },
@@ -77,7 +77,16 @@ export const nekromanta = {
   },
 };
 
-/** Szkielety gonią najbliższego bohatera i atakują z telegrafem. @param {any} state @param {number} dt */
+/**
+ * Tworzy miniona z własnymi statystykami (szkielet Nekromanty, pajęczak Pajęczycy).
+ * @param {any} state @param {string} ownerId @param {number} x @param {number} y
+ * @param {{hp:number,radius:number,speed:number,atkRange:number,atkTelegraph:number,atkCd:number}} cfg @param {string} kind
+ */
+export function makeMinion(state, ownerId, x, y, cfg, kind) {
+  return { id: nextId(state), kind, ownerId, x, y, hp: cfg.hp, maxHp: cfg.hp, r: cfg.radius, cd: 0.6, windup: 0, fx: 1, fy: 0, speed: cfg.speed, atkRange: cfg.atkRange, atkTelegraph: cfg.atkTelegraph, atkCd: cfg.atkCd };
+}
+
+/** Miniony gonią najbliższego bohatera i atakują z telegrafem. @param {any} state @param {number} dt */
 export function updateMinions(state, dt) {
   state.minions = state.minions.filter((m) => m.hp > 0);
   for (const m of state.minions) {
@@ -93,15 +102,17 @@ export function updateMinions(state, dt) {
     const d = Math.hypot(dx, dy) || 1;
     m.fx = dx / d;
     m.fy = dy / d;
-    if (d <= C.q.atkRange + HERO.radius + m.r) {
+    const atkRange = m.atkRange ?? C.q.atkRange;
+    if (d <= atkRange + HERO.radius + m.r) {
       if (m.cd <= 0) {
-        addZone(state, { kind: 'minionMelee', shape: 'arc', ownerId: m.ownerId, x: m.x, y: m.y, r: C.q.atkRange + m.r + 0.3, ang: Math.atan2(dy, dx), arc: 100 * RAD, warn: C.q.atkTelegraph, life: 0.06, dmg: 1 });
-        m.windup = C.q.atkTelegraph;
-        m.cd = C.q.atkCd;
+        const tel = m.atkTelegraph ?? C.q.atkTelegraph;
+        addZone(state, { kind: 'minionMelee', shape: 'arc', ownerId: m.ownerId, x: m.x, y: m.y, r: atkRange + m.r + 0.3, ang: Math.atan2(dy, dx), arc: 100 * RAD, warn: tel, life: 0.06, dmg: 1 });
+        m.windup = tel;
+        m.cd = m.atkCd ?? C.q.atkCd;
       }
     } else {
-      m.x += m.fx * C.q.speed * dt;
-      m.y += m.fy * C.q.speed * dt;
+      m.x += m.fx * (m.speed ?? C.q.speed) * dt;
+      m.y += m.fy * (m.speed ?? C.q.speed) * dt;
       resolveStatic(m, m.r);
     }
   }

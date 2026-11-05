@@ -10,6 +10,8 @@ export const MATCH = {
   timeLimit: 8 * 60,
   minPlayers: 2,
   maxPlayers: 6,
+  /** tryb lokalny (ludzie + boty na jednym ekranie) */
+  maxPlayersLocal: 8,
   arenaRadius: 16,
   /** @type {{x:number,y:number,r:number}[]} */
   pillars: [
@@ -22,7 +24,8 @@ export const MATCH = {
   spawnRadius: 12.5,
   spawnCount: 8,
   crownPickupRadius: 1.1,
-  transitionTime: 1.5,
+  /** przejście korony: losowanie w stylu skrzynki (spin) + odsłonięcie */
+  transitionTime: 3.2,
   slowmoScale: 0.3,
   startCountdown: 3,
 };
@@ -158,6 +161,80 @@ export const BOSSES = {
   },
 };
 
-export const BOSS_IDS = /** @type {const} */ (['kolos', 'cien', 'nekromanta', 'burza']);
+BOSSES.kolos.rarity = 'blue';
+BOSSES.burza.rarity = 'blue';
+BOSSES.cien.rarity = 'purple';
+BOSSES.nekromanta.rarity = 'purple';
+
+Object.assign(BOSSES, {
+  smok: {
+    name: 'Smok',
+    color: '#ff6a2b',
+    rarity: 'red',
+    speedMul: 0.9,
+    hpMul: 1,
+    dmgTakenMul: 1,
+    knockbackImmune: false,
+    passive: { every: 4, radius: 1.4, telegraph: 0.6, life: 2.5 },
+    atk: { cd: 1.2, telegraph: 0.4, speed: 13, range: 10, r: 0.3 },
+    q: { cd: 6, telegraph: 0.6, range: 7, arc: 70 },
+    e: { cd: 10, telegraph: 0.8, range: 9, radius: 3, knock: 6 },
+    r: { cd: 13, telegraph: 0.8, count: 6, radius: 1.5, spread: 8 },
+  },
+  szron: {
+    name: 'Szron',
+    color: '#9fe8ff',
+    rarity: 'pink',
+    speedMul: 1,
+    hpMul: 1,
+    dmgTakenMul: 1,
+    knockbackImmune: false,
+    passive: { slow: 0.3, duration: 1.5 },
+    atk: { cd: 1.0, telegraph: 0.4, speed: 15, range: 9, r: 0.22 },
+    q: { cd: 7, telegraph: 0.6, radius: 4 },
+    e: { cd: 10, telegraph: 0.7, len: 10, width: 1.2, life: 3, slow: 0.5 },
+    r: { cd: 15, telegraph: 0.8, radius: 5, range: 10, life: 4, tick: 1.5, slow: 0.4 },
+  },
+  pajeczyca: {
+    name: 'Pajęczyca',
+    color: '#d4ff3b',
+    rarity: 'pink',
+    speedMul: 1.15,
+    hpMul: 0.9,
+    dmgTakenMul: 1,
+    knockbackImmune: false,
+    atk: { cd: 0.9, telegraph: 0.4, range: 2.4, arc: 80 },
+    q: { cd: 7, telegraph: 0.5, speed: 14, range: 10, r: 0.45, stun: 1.2 },
+    e: { cd: 9, telegraph: 0.7, range: 8, radius: 2 },
+    r: { cd: 14, telegraph: 0.6, count: 4, max: 8, hp: 8, speed: 4.2, radius: 0.3, atkRange: 0.7, atkTelegraph: 0.5, atkCd: 1.6 },
+  },
+  widmo: {
+    name: 'Widmo',
+    color: '#c9c9ff',
+    rarity: 'red',
+    speedMul: 1.05,
+    hpMul: 1,
+    dmgTakenMul: 1,
+    knockbackImmune: false,
+    passive: { healOnKill: 0.06 },
+    atk: { cd: 1.4, telegraph: 0.5, range: 3.0, arc: 150 },
+    q: { cd: 7, telegraph: 0.5, speed: 14, range: 18, r: 0.4 },
+    e: { cd: 11, telegraph: 0.6, radius: 5, knock: 10 },
+    r: { cd: 12, telegraph: 0.8, from: 11, duration: 1.2, width: 0.8 },
+  },
+});
+
+export const BOSS_IDS = /** @type {const} */ (['kolos', 'cien', 'nekromanta', 'burza', 'smok', 'szron', 'pajeczyca', 'widmo']);
+
+/** Rzadkości jak w skrzynkach CS2: waga losowania i kolor karty. */
+export const RARITY = {
+  blue: { name: 'Niebieski', color: '#4b69ff', weight: 4 },
+  purple: { name: 'Fioletowy', color: '#8847ff', weight: 3 },
+  pink: { name: 'Różowy', color: '#d32ce6', weight: 2 },
+  red: { name: 'Czerwony', color: '#eb4b4b', weight: 1.5 },
+};
+
+/** Taśma losowania (skrzynka). */
+export const CASE = { stripLength: 40, winIndex: 33, spin: 2.6 };
 
 export const PROJECTILE_MAX = 400;

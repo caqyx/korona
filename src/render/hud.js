@@ -1,4 +1,4 @@
-import { BOSSES, BOSS_COMMON, SKINS, HERO } from '../sim/config.js';
+import { BOSSES, BOSS_COMMON, SKINS, HERO, RARITY, CASE } from '../sim/config.js';
 import { slotColor, CROWN } from './palette.js';
 import { feverMultiplier } from '../sim/combat.js';
 
@@ -9,7 +9,7 @@ export function drawHud(ctx, cam, view, o) {
   drawTimer(ctx, cam, view);
   for (const id of o.meIds) drawCooldowns(ctx, cam, view, id, o.meIds.length > 1);
   if (view.phase === 'countdown') bigText(ctx, cam, String(Math.ceil(view.countdown)), 'Zdobądź koronę!');
-  if (view.phase === 'transition' && view.transition) drawRoulette(ctx, cam, view, o.time);
+  if (view.phase === 'transition' && view.transition) drawRoulette(ctx, cam, view, o.time, o.sound);
   if (o.fx.banner && view.phase !== 'transition') bigText(ctx, cam, o.fx.banner.text, '', 0.25, 30);
   if (o.overlay) bigText(ctx, cam, o.overlay, '', 0.5, 34);
 }
@@ -120,33 +120,109 @@ function drawCooldowns(ctx, cam, view, id, compact) {
   cdIcon(ctx, baseX + 72, y, 15, p.abilCd / s.ability.cd, 'PPM', color);
 }
 
-function drawRoulette(ctx, cam, view, time) {
+let lastTickIdx = -1;
+
+/** Easing jak w skrzynkach CS2: szybki start, długie hamowanie. */
+const easeOutQuart = (p) => 1 - Math.pow(1 - p, 4);
+
+/**
+ * Losowanie bossa w stylu skrzynki CS2: taśma kart z kolorami rzadkości przewija się
+ * pod złotym znacznikiem i zwalnia, zatrzymując się na wylosowanym bossie.
+ */
+function drawRoulette(ctx, cam, view, time, sound) {
   const tr = view.transition;
-  const elapsed = 1.5 - tr.t;
+  const total = tr.total || 3.2;
+  const elapsed = total - tr.t;
   const p = view.players.find((x) => x.id === tr.newBossId);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  const strip = tr.strip || [tr.bossType];
+  const cw = Math.min(150, Math.max(96, cam.w / 7));
+  const ch = cw * 0.78;
+  const cx = cam.w / 2;
+  const top = Math.max(120, cam.h * 0.32);
+  const progress = Math.min(1, elapsed / CASE.spin);
+  const target = (tr.win + tr.offset) * cw;
+  const pos = easeOutQuart(progress) * target;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(0, 0, cam.w, cam.h);
   ctx.textAlign = 'center';
   ctx.fillStyle = CROWN;
-  ctx.font = '800 30px system-ui, sans-serif';
-  const by = Math.max(110, cam.h * 0.3);
-  ctx.fillText(`${p ? p.nick : '?'} — nowy boss`, cam.w / 2, by - 24);
-  const choices = tr.choices;
-  const spin = elapsed < 1.0;
-  const idx = spin ? Math.floor(time * 14) % choices.length : choices.indexOf(tr.bossType);
-  choices.forEach((c, i) => {
-    const x = cam.w / 2 + (i - (choices.length - 1) / 2) * 120;
-    const active = i === idx;
-    ctx.fillStyle = active ? BOSSES[c].color : 'rgba(255,255,255,0.15)';
-    ctx.fillRect(x - 48, by, 96, 56);
-    ctx.fillStyle = active ? '#000' : '#aaa';
-    ctx.font = '700 15px system-ui, sans-serif';
-    ctx.fillText(BOSSES[c].name, x, by + 34);
-  });
-  if (!spin) {
-    ctx.fillStyle = BOSSES[tr.bossType].color;
-    ctx.font = '800 40px system-ui, sans-serif';
-    ctx.fillText(BOSSES[tr.bossType].name.toUpperCase(), cam.w / 2, by + 104);
+  ctx.font = '800 28px system-ui, sans-serif';
+  ctx.fillText(`${p ? p.nick : '?'} — otwiera skrzynkę bossa`, cx, top - 34);
+
+  // tło taśmy
+  ctx.fillStyle = '#0d0e1c';
+  ctx.fillRect(0, top - 8, cam.w, ch + 16);
+  const first = Math.max(0, Math.floor((pos - cx) / cw) - 1);
+  const last = Math.min(strip.length - 1, Math.ceil((pos + cx) / cw) + 1);
+  for (let i = first; i <= last; i++) {
+    const x = cx + i * cw - pos;
+    const def = BOSSES[strip[i]];
+    const rar = RARITY[def.rarity] || RARITY.blue;
+    const done = progress >= 1;
+    const isWin = done && i === tr.win;
+    ctx.globalAlpha = done && !isWin ? 0.35 : 1;
+    const g = ctx.createLinearGradient(0, top, 0, top + ch);
+    g.addColorStop(0, '#1b1d33');
+    g.addColorStop(1, rar.color + '55');
+    ctx.fillStyle = g;
+    ctx.fillRect(x + 3, top, cw - 6, ch);
+    ctx.fillStyle = rar.color;
+    ctx.fillRect(x + 3, top + ch - 6, cw - 6, 6);
+    // ikona: kolorowy kształt bossa
+    ctx.strokeStyle = def.color;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = def.color;
+    ctx.shadowBlur = isWin ? 24 : 8;
+    ctx.beginPath();
+    ctx.arc(x + cw / 2, top + ch * 0.38, ch * 0.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 ${Math.round(cw / 9)}px system-ui, sans-serif`;
+    ctx.fillText(def.name, x + cw / 2, top + ch * 0.8);
+    if (isWin) {
+      ctx.strokeStyle = rar.color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 3, top, cw - 6, ch);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // znacznik
+  ctx.fillStyle = CROWN;
+  ctx.shadowColor = CROWN;
+  ctx.shadowBlur = 12;
+  ctx.fillRect(cx - 1.5, top - 14, 3, ch + 28);
+  ctx.beginPath();
+  ctx.moveTo(cx - 9, top - 16);
+  ctx.lineTo(cx + 9, top - 16);
+  ctx.lineTo(cx, top - 4);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // tyknięcie przy każdej karcie mijającej znacznik
+  const idx = Math.floor(pos / cw);
+  if (progress < 1 && idx !== lastTickIdx) {
+    lastTickIdx = idx;
+    sound?.('tick');
+  }
+  if (progress >= 1) {
+    if (lastTickIdx !== -2) {
+      lastTickIdx = -2;
+      sound?.('reveal');
+    }
+    const def = BOSSES[tr.bossType];
+    const rar = RARITY[def.rarity] || RARITY.blue;
+    ctx.fillStyle = def.color;
+    ctx.shadowColor = def.color;
+    ctx.shadowBlur = 20;
+    ctx.font = '800 42px system-ui, sans-serif';
+    ctx.fillText(def.name.toUpperCase(), cx, top + ch + 56);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = rar.color;
+    ctx.font = '700 16px system-ui, sans-serif';
+    ctx.fillText(rar.name, cx, top + ch + 80);
   }
   ctx.textAlign = 'left';
 }

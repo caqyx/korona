@@ -29,6 +29,7 @@ export const emptyInput = () => ({ moveX: 0, moveY: 0, aimX: 0, aimY: 0, buttons
  * @property {boolean} overloaded
  * @property {number} invisT
  * @property {boolean} dying
+ * @property {number} passiveT
  */
 
 /**
@@ -132,11 +133,12 @@ export function spawnPoint(i) {
  * @property {number} [targetScore]
  * @property {number} [timeLimit]
  * @property {number} [countdown]
+ * @property {number} [maxPlayers]
  */
 
 /** @param {MatchOptions} opts */
 export function createMatchState(opts) {
-  const players = opts.players.slice(0, MATCH.maxPlayers).map((p, i) => createPlayer(p.id, p.nick, p.skin, i));
+  const players = opts.players.slice(0, opts.maxPlayers ?? MATCH.maxPlayers).map((p, i) => createPlayer(p.id, p.nick, p.skin, i));
   return {
     v: 1,
     tick: 0,
@@ -150,7 +152,7 @@ export function createMatchState(opts) {
     players,
     crown: { state: /** @type {'center'|'held'} */ ('center'), holderId: /** @type {string|null} */ (null), x: 0, y: 0 },
     lastBossType: /** @type {string|null} */ (null),
-    /** @type {null|{t:number,newBossId:string,prevBossId:string|null,bossType:string,choices:string[],bonus:boolean}} */
+    /** @type {null|{t:number,total:number,newBossId:string,prevBossId:string|null,bossType:string,strip:string[],win:number,offset:number,bonus:boolean}} */
     transition: null,
     /** @type {any[]} */ projectiles: [],
     /** @type {any[]} */ zones: [],

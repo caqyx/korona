@@ -93,7 +93,7 @@ function bossBot(state, me, rng) {
   const dy = target.y - me.y;
   const d = Math.hypot(dx, dy) || 1;
   const range = BOSSES[me.boss.type].atk.range ?? 3;
-  const melee = me.boss.type === 'kolos' || me.boss.type === 'cien';
+  const melee = ['kolos', 'cien', 'pajeczyca', 'widmo'].includes(me.boss.type);
   const want = melee ? range * 0.7 : 5;
   const radial = d > want ? 1 : -0.6;
   let buttons = 0;

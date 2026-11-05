@@ -3,7 +3,7 @@
 html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family: system-ui, -apple-system, Segoe UI, sans-serif; overflow:hidden; overscroll-behavior:none; touch-action:none; -webkit-user-select:none; user-select:none; }
 #game { position:fixed; inset:0; width:100vw; height:100vh; display:block; }
 .hidden { display:none !important; }
-.screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:16px; background:radial-gradient(circle at 50% 30%, #161838 0%, rgba(7,7,13,.97) 65%); overflow:auto; }
+.screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:safe center; gap:14px; padding:16px; background:radial-gradient(circle at 50% 30%, #161838 0%, rgba(7,7,13,.97) 65%); overflow:auto; }
 .logo { font-size:clamp(40px, min(12vw, 16vh), 110px); margin:0; letter-spacing:.12em; color:var(--gold); text-shadow:0 0 24px rgba(255,210,63,.6), 0 0 60px rgba(255,210,63,.3); }
 .tag { margin:0 0 8px; opacity:.8; }
 h2 { margin:0; display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; }
@@ -31,7 +31,8 @@ input, select { background:#10112a; color:var(--fg); border:1px solid #3a3e7a; b
 .skin { padding:10px 14px; border-radius:8px; border:2px solid transparent; background:var(--panel); cursor:pointer; min-width:110px; text-align:center; }
 .skin.sel { border-color:var(--c); box-shadow:0 0 14px var(--c); }
 .skin small { display:block; opacity:.7; font-size:11px; }
-.slot { background:var(--panel); padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:6px; min-width:170px; border-top:3px solid var(--c); }
+.slots { max-width:960px; }
+.slot { background:var(--panel); padding:8px; border-radius:8px; display:flex; flex-direction:column; gap:4px; min-width:150px; border-top:3px solid var(--c); }
 .podium { display:flex; gap:16px; align-items:flex-end; }
 .podium div { background:var(--panel); padding:10px 16px; border-radius:8px 8px 0 0; text-align:center; min-width:100px; }
 .stats { border-collapse:collapse; background:var(--panel); border-radius:8px; }
@@ -52,3 +53,4 @@ input, select { background:#10112a; color:var(--fg); border:1px solid #3a3e7a; b
 .boss-only { display:none; }
 .touch.is-boss .boss-only { display:block; border-color:var(--red); }
 @media (max-width: 600px) { button { padding:9px 12px; font-size:15px; } }
+.slot input, .slot select { padding:6px 8px; font-size:14px; }

@@ -48,6 +48,11 @@ export function hurtHero(state, h, dmg, sourceId, fromX, fromY) {
   if (src && src.boss) {
     src.boss.invisT = 0; // zadanie obrażeń przerywa Zasłonę
     if (src.boss.type === 'burza') countOverloadHit(src);
+    if (src.boss.type === 'szron' && h.hp > dmg - 1) {
+      // pasywka Szronu: wychłodzenie
+      h.slowT = Math.max(h.slowT, BOSSES.szron.passive.duration);
+      h.slowMul = 1 - BOSSES.szron.passive.slow;
+    }
   }
   if (h.hp <= 0) onHeroKilled(state, h, sourceId);
   return true;

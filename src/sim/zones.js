@@ -107,7 +107,7 @@ export function updateZones(state, dt) {
       if (z.born !== state.tick) z.warn -= dt;
       if (z.warn <= 1e-9) {
         z.warn = 0;
-        if (z.dmg > 0 || z.slow > 0) state.events.push({ t: 'zoneFire', kind: z.kind, x: z.x, y: z.y, r: z.r });
+        if (z.dmg > 0 || z.slow > 0 || z.knock > 0) state.events.push({ t: 'zoneFire', kind: z.kind, x: z.x, y: z.y, r: z.r });
       } else {
         keep.push(z);
         continue;
@@ -122,7 +122,7 @@ export function updateZones(state, dt) {
 
 /** @param {import('./state.js').MatchState} state @param {Zone} z @param {number} dt */
 function applyZone(state, z, dt) {
-  if (z.dmg <= 0 && z.slow <= 0) return;
+  if (z.dmg <= 0 && z.slow <= 0 && z.knock <= 0) return;
   let tickNow = false;
   if (z.tick > 0) {
     z.tickT -= dt;
@@ -138,7 +138,14 @@ function applyZone(state, z, dt) {
       h.slowT = 0.2;
       h.slowMul = 1 - z.slow;
     }
-    if (z.dmg <= 0) continue;
+    if (z.dmg <= 0) {
+      // strefa tylko odpychająca (np. Strach Widma)
+      if (z.knock > 0 && !z.hit.includes(h.id) && h.invulnT <= 0 && h.dashT <= 0) {
+        z.hit.push(h.id);
+        applyKnock(h, z);
+      }
+      continue;
+    }
     if (z.tick > 0) {
       if (tickNow) hurtHero(state, h, z.dmg, z.ownerId, z.x, z.y);
     } else if (!z.hit.includes(h.id)) {

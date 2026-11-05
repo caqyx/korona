@@ -69,13 +69,15 @@ const SOUNDS = {
   win: () => [392, 523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.35, 'square', 0.18), i * 120)),
   go: () => tone(880, 0.2, 'square', 0.2),
   click: () => tone(660, 0.05, 'square', 0.12),
+  tick: () => tone(1800, 0.025, 'square', 0.08),
+  reveal: () => [660, 990, 1320].forEach((f, i) => setTimeout(() => tone(f, 0.18, 'triangle', 0.2), i * 70)),
 };
 
 /** Odtwarza efekt (z prostym ograniczeniem częstotliwości). @param {string} name */
 export function play(name) {
   if (muted || !ac) return;
   const now = ac.currentTime;
-  if (now - (lastPlayed.get(name) || 0) < 0.04) return;
+  if (now - (lastPlayed.get(name) || 0) < (name === 'tick' ? 0.015 : 0.04)) return;
   lastPlayed.set(name, now);
   const fn = /** @type {any} */ (SOUNDS)[name];
   if (fn) fn();

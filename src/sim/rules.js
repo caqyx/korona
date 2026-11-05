@@ -1,4 +1,4 @@
-import { SCORE, MATCH, HERO, BOSS_COMMON, BOSSES, BOSS_IDS } from './config.js';
+import { SCORE, MATCH, HERO, BOSS_COMMON, BOSSES, BOSS_IDS, RARITY, CASE } from './config.js';
 import { spawnPoint } from './state.js';
 import { resolveStatic } from './physics.js';
 
@@ -6,16 +6,33 @@ import { resolveStatic } from './physics.js';
 /** @typedef {import('./state.js').Player} Player */
 /** @typedef {import('./rng.js').Rng} Rng */
 
+/** Waga losowania typu wg rzadkości. @param {string} type */
+export const bossWeight = (type) => RARITY[/** @type {keyof typeof RARITY} */ (/** @type {any} */ (BOSSES)[type].rarity)]?.weight ?? 1;
+
+/** Losowanie ważone rzadkością. @param {Rng} rng @param {string[]} pool */
+function weightedPick(rng, pool) {
+  const total = pool.reduce((a, t) => a + bossWeight(t), 0);
+  let x = rng.next() * total;
+  for (const t of pool) {
+    x -= bossWeight(t);
+    if (x < 0) return t;
+  }
+  return pool[pool.length - 1];
+}
+
 /**
- * Losuje typ bossa bez powtórki poprzedniego. Zwraca też 3 opcje do ruletki.
+ * Losuje typ bossa (ważony rzadkością, bez powtórki poprzedniego) i taśmę
+ * „skrzynki” w stylu CS2: karta `win` to wylosowany boss, `offset` to miejsce zatrzymania w karcie.
  * @param {Rng} rng @param {string|null} lastType
- * @returns {{type:string, choices:string[]}}
+ * @returns {{type:string, strip:string[], win:number, offset:number}}
  */
 export function drawBossType(rng, lastType) {
-  const choices = BOSS_IDS.filter((t) => t !== lastType).slice(0, 3);
-  const pool = lastType ? choices : [...BOSS_IDS];
-  const type = pool[rng.int(pool.length)];
-  return { type, choices: lastType ? choices : pool.filter((t) => t !== type).slice(0, 2).concat(type) };
+  const pool = BOSS_IDS.filter((t) => t !== lastType);
+  const type = weightedPick(rng, pool);
+  const strip = [];
+  for (let i = 0; i < CASE.stripLength; i++) strip.push(i === CASE.winIndex ? type : weightedPick(rng, pool));
+  const offset = 0.12 + rng.next() * 0.76;
+  return { type, strip, win: CASE.winIndex, offset: Math.round(offset * 1000) / 1000 };
 }
 
 /** HP bossa = 120 × liczba bohaterów × mnożnik typu. @param {MatchState} state @param {string} bossId @param {string} type */
@@ -26,10 +43,10 @@ export function bossMaxHp(state, bossId, type) {
 
 /** Rozpoczyna slow-mo i ruletkę. @param {MatchState} state @param {Rng} rng */
 export function startTransition(state, rng, newBossId, prevBossId, bonus) {
-  const { type, choices } = drawBossType(rng, state.lastBossType);
+  const { type, strip, win, offset } = drawBossType(rng, state.lastBossType);
   state.crown.state = 'held';
   state.crown.holderId = newBossId;
-  state.transition = { t: MATCH.transitionTime, newBossId, prevBossId, bossType: type, choices, bonus };
+  state.transition = { t: MATCH.transitionTime, total: MATCH.transitionTime, newBossId, prevBossId, bossType: type, strip, win, offset, bonus };
   state.phase = 'transition';
   state.events.push({ t: 'crownTaken', id: newBossId, prev: prevBossId, bossType: type, bonus });
 }
@@ -71,6 +88,7 @@ export function promoteToBoss(state, p, type) {
     overloaded: false,
     invisT: 0,
     dying: false,
+    passiveT: 0,
   };
   p.alive = true;
   p.hp = HERO.hp;
@@ -162,6 +180,8 @@ export function onHeroKilled(state, h, sourceId) {
   if (src && src.boss) {
     src.score += SCORE.bossKillsHero;
     src.bossKills += 1;
+    const heal = /** @type {any} */ (BOSSES)[src.boss.type].passive?.healOnKill;
+    if (heal && !src.boss.dying) src.boss.hp = Math.min(src.boss.maxHp, src.boss.hp + heal * src.boss.maxHp);
   }
 }
 

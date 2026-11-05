@@ -152,7 +152,7 @@ function pathZone(ctx, cam, z, x, y, telegraph) {
     ctx.lineTo(x + sa * hw, y - ca * hw);
     ctx.closePath();
   } else if (z.shape === 'ring') {
-    const r = telegraph ? z.rMax : ringRadius(z);
+    const r = telegraph ? Math.max(z.r, z.rMax) : ringRadius(z);
     const w = telegraph ? 0.15 : z.w;
     ctx.arc(x, y, Math.max(0.2, (r + w / 2) * s), 0, Math.PI * 2);
     ctx.arc(x, y, Math.max(0.1, (r - w / 2) * s), 0, Math.PI * 2, true);
@@ -227,7 +227,7 @@ function drawProjectiles(ctx, cam, view) {
     const [x, y] = worldToScreen(cam, pr.x, pr.y);
     const r = Math.max(2, pr.r * cam.scale);
     if (pr.team === 'boss') {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = pr.kind === 'web' ? 'rgba(255,255,255,0.35)' : '#ffffff';
       ctx.strokeStyle = TELEGRAPH;
       ctx.lineWidth = 2.5;
       ctx.shadowColor = TELEGRAPH;
@@ -296,6 +296,36 @@ function bossPath(ctx, type, x, y, r, ang, time) {
     ctx.lineTo(x + Math.cos(ang + 2.4) * r, y + Math.sin(ang + 2.4) * r);
     ctx.lineTo(x + Math.cos(ang + Math.PI) * r * 0.5, y + Math.sin(ang + Math.PI) * r * 0.5);
     ctx.lineTo(x + Math.cos(ang - 2.4) * r, y + Math.sin(ang - 2.4) * r);
+  } else if (type === 'smok') {
+    const pts = [[1.2, 0], [0.2, 0.5], [-0.3, 1.1], [-0.6, 0.35], [-1, 0], [-0.6, -0.35], [-0.3, -1.1], [0.2, -0.5]];
+    pts.forEach(([px, py], i) => {
+      const xx = x + (Math.cos(ang) * px - Math.sin(ang) * py) * r;
+      const yy = y + (Math.sin(ang) * px + Math.cos(ang) * py) * r;
+      ctx[i ? 'lineTo' : 'moveTo'](xx, yy);
+    });
+  } else if (type === 'szron') {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + time * 0.4;
+      const rr = i % 2 ? r * 0.45 : r * 1.05;
+      ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+  } else if (type === 'pajeczyca') {
+    ctx.arc(x, y, r * 0.7, 0, Math.PI * 2);
+    for (let i = 0; i < 8; i++) {
+      const a = ang + Math.PI / 2 + ((i % 4) - 1.5) * 0.45 + (i < 4 ? 0 : Math.PI);
+      const wig = Math.sin(time * 10 + i) * 0.08;
+      ctx.moveTo(x + Math.cos(a) * r * 0.7, y + Math.sin(a) * r * 0.7);
+      ctx.lineTo(x + Math.cos(a + wig) * r * 1.25, y + Math.sin(a + wig) * r * 1.25);
+    }
+    return;
+  } else if (type === 'widmo') {
+    const wave = Math.sin(time * 4) * 0.08;
+    ctx.moveTo(x + Math.cos(ang) * r * 1.1, y + Math.sin(ang) * r * 1.1);
+    for (let i = 1; i < 10; i++) {
+      const a = ang + (i / 10) * Math.PI * 2;
+      const rr = r * (i % 2 ? 0.95 + wave : 0.7 - wave);
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
   } else {
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2 + time * 2;

@@ -45,7 +45,7 @@ export function createGameView(canvas, mode) {
     if (!lastFrame) return;
     const me = lastFrame.view.players.find((p) => p.id === lastFrame.meIds[0]);
     updateCamera(cam, w, h, me && me.alive ? me : null, dt);
-    renderer.draw(lastFrame.view, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode });
+    renderer.draw(lastFrame.view, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode, sound: play });
   }
 
   return {
