@@ -116,7 +116,8 @@ export function createSession(o) {
 
   /** @param {any} m */
   function onStart(m) {
-    if (phase === 'match' && match && m.payload.epoch <= match.epoch) return;
+    if (phase === 'match') return; // trwający mecz zmienia hosta tylko przez host_claim/handoff
+    if (m.from !== m.payload.hostId) return; // START może wysłać tylko sam host
     if (!m.payload.state.players.some((p) => p.id === self)) return; // nie jesteśmy w tym meczu
     match = { id: m.payload.matchId, epoch: m.payload.epoch, hostId: m.payload.hostId, players: m.payload.state.players.map((p) => p.id), startedAt: Date.now(), finalState: null };
     links.setEpoch(match.epoch);
@@ -214,7 +215,9 @@ export function createSession(o) {
   }
 
   function isOwnerId(id) {
-    return presence.some((p) => p.userId === id && p.owner) || (o.room.ownerId && o.room.ownerId === id);
+    // owner_id z bazy jest autorytatywny; flaga `owner` w Presence (ustawiana przez klienta) tylko bez Supabase
+    if (o.room.ownerId) return o.room.ownerId === id;
+    return presence.some((p) => p.userId === id && p.owner);
   }
 
   /** @param {any} m */
@@ -232,6 +235,7 @@ export function createSession(o) {
     if (!match || phase !== 'match') return;
     const claim = { epoch: m.payload.epoch, hostId: m.payload.hostId };
     if (claim.hostId !== m.from) return;
+    if (!match.players.includes(claim.hostId)) return; // hostem może zostać tylko uczestnik meczu
     const cur = { epoch: match.epoch, hostId: match.hostId };
     const ranking = rankPeers(presence).map((p) => p.userId);
     const win = resolveClaim(cur, claim, ranking);

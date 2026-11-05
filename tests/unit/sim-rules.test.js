@@ -137,15 +137,16 @@ describe('boss kill / crown takeover', () => {
 });
 
 describe('scoring', () => {
-  it('+1 per second in the crown', () => {
+  it('+perCrownSecond for every crownInterval seconds in the crown', () => {
     const { state, boss } = bossArena('kolos', [{ id: 'H', x: 0, y: 12 }]);
-    run(state, 59);
+    const iv = Math.round(SCORE.crownInterval * 60);
+    run(state, iv - 1);
     expect(boss.score).toBe(0);
     run(state, 2);
-    expect(boss.score).toBe(1);
-    run(state, 9 * 60);
-    expect(boss.score).toBe(10);
-    expect(boss.crownTime).toBeCloseTo(601 * DT, 9);
+    expect(boss.score).toBe(SCORE.perCrownSecond);
+    run(state, 9 * iv);
+    expect(boss.score).toBe(10 * SCORE.perCrownSecond);
+    expect(boss.crownTime).toBeCloseTo((10 * iv + 1) * DT, 9);
   });
 
   it('+3 for the boss killing a hero', () => {
@@ -163,7 +164,7 @@ describe('scoring', () => {
     const { state, boss } = bossArena('kolos', [{ id: 'H', x: 0, y: 12 }]);
     expect(state.targetScore).toBe(100);
     boss.score = 99;
-    boss.crownAcc = 1 - DT / 2;
+    boss.crownAcc = SCORE.crownInterval - DT / 2;
     step(state, {});
     expect(boss.score).toBe(100);
     expect(state.phase).toBe('ended');

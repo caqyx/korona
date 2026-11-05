@@ -29,6 +29,7 @@ export const LIMITS = Object.freeze({
   maxPlayers: 6,
   maxEntities: 600,
   maxDepth: 8,
+  maxString: 16 * 1024,
 });
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -56,7 +57,8 @@ function safeShape(v, depth = 0) {
     return true;
   }
   if (typeof v === 'number') return Number.isFinite(v);
-  return v === null || typeof v === 'string' || typeof v === 'boolean';
+  if (typeof v === 'string') return v.length <= LIMITS.maxString;
+  return v === null || typeof v === 'boolean';
 }
 
 /** @param {any} p */
@@ -98,6 +100,9 @@ export function validateSnapshotState(s) {
   for (const p of s.players) {
     if (!isObj(p) || !isId(p.id) || !isStr(p.nick, LIMITS.maxNick) || !SKIN_IDS.includes(p.skin)) return false;
     if (!isNum(p.x, -100, 100) || !isNum(p.y, -100, 100) || !isInt(p.score, 0, 100000)) return false;
+    // pola trafiające do UI (innerHTML podsumowania) i do match_results po migracji — muszą być liczbami
+    if (!isInt(p.slot, 0, LIMITS.maxPlayers - 1) || !isNum(p.crownTime, 0, 1e6)) return false;
+    if (!isInt(p.lastHits, 0, 1e6) || !isInt(p.bossKills, 0, 1e6) || !isInt(p.deaths, 0, 1e6)) return false;
   }
   for (const k of ['projectiles', 'zones', 'minions', 'turrets', 'events']) {
     if (!Array.isArray(s[k]) || s[k].length > LIMITS.maxEntities) return false;

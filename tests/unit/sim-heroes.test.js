@@ -155,7 +155,7 @@ describe('Łotrzyk: shadow step', () => {
     const dmg1 = boss.boss.maxHp - boss.boss.hp;
     expect(dmg1).toBeCloseTo(SKINS.lotrzyk.attack.dmg * C.mult, 9);
     expect(r.buffMult).toBe(1);
-    run(state, 30, () => ({ R: inp({ buttons: BTN.ATTACK }) }));
+    run(state, Math.ceil(SKINS.lotrzyk.attack.cd * 60) + 5, () => ({ R: inp({ buttons: BTN.ATTACK }) }));
     const hits = (boss.boss.maxHp - boss.boss.hp - dmg1) / SKINS.lotrzyk.attack.dmg;
     expect(hits).toBeGreaterThanOrEqual(1);
     expect(hits).toBeCloseTo(Math.round(hits), 6); // later attacks deal plain x1 damage

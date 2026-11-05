@@ -45,22 +45,36 @@ function heroBot(state, me, rng) {
     mx = dx / d;
     my = dy / d;
   }
-  if (inDanger(state, me) && me.dashCd <= 0) {
-    buttons |= BTN.DASH;
-    mx = -my || 1;
-    my = mx;
+  const esc = escapeVector(state, me);
+  if (esc) {
+    mx = esc.x;
+    my = esc.y;
+    if (esc.urgent && me.dashCd <= 0) buttons |= BTN.DASH;
   }
-  if (rng.next() < 0.02) buttons |= BTN.DASH * (rng.next() < 0.3 ? 1 : 0);
   return { moveX: mx, moveY: my, aimX, aimY, buttons: buttons | 0 };
 }
 
-function inDanger(state, me) {
+/** Kierunek ucieczki z najbliższego zagrożenia (telegrafu) albo null. */
+function escapeVector(state, me) {
   for (const z of state.zones) {
     if (z.dmg <= 0) continue;
-    if (z.warn > 0 && z.warn < 0.25 && zoneContains(z, me.x, me.y, HERO.radius)) return true;
-    if (z.shape === 'ring' && z.warn <= 0 && zoneContains(z, me.x, me.y, HERO.radius + 0.6)) return true;
+    const ring = z.shape === 'ring';
+    const threat = ring ? z.warn <= 0 && zoneContains(z, me.x, me.y, HERO.radius + 0.8) : z.warn > 0 && z.warn < 0.5 && zoneContains(z, me.x, me.y, HERO.radius + 0.3);
+    if (!threat) continue;
+    if (ring) return { x: 0, y: 0, urgent: true };
+    let dx = me.x - z.x;
+    let dy = me.y - z.y;
+    if (z.shape === 'line') {
+      const nx = -Math.sin(z.ang);
+      const ny = Math.cos(z.ang);
+      const side = dx * nx + dy * ny >= 0 ? 1 : -1;
+      dx = nx * side;
+      dy = ny * side;
+    }
+    const d = Math.hypot(dx, dy) || 1;
+    return { x: dx / d, y: dy / d, urgent: z.warn < 0.2 };
   }
-  return false;
+  return null;
 }
 
 function bossBot(state, me, rng) {

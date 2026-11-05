@@ -193,8 +193,8 @@ export function accrueCrownTime(state, dt) {
     p.boss.reign += dt;
     p.crownTime += dt;
     p.crownAcc += dt;
-    while (p.crownAcc >= 1) {
-      p.crownAcc -= 1;
+    while (p.crownAcc >= SCORE.crownInterval) {
+      p.crownAcc -= SCORE.crownInterval;
       p.score += SCORE.perCrownSecond;
     }
   }
