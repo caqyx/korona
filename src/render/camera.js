@@ -1,4 +1,4 @@
-import { MATCH } from '../sim/config.js';
+import { getMap, mapExtent } from '../sim/maps.js';
 import { PPM } from './sprites.js';
 
 /**
@@ -35,10 +35,11 @@ function snapScale(s) {
  * @param {ReturnType<typeof createCamera>} cam @param {number} w @param {number} h
  * @param {{x:number,y:number,fx?:number,fy?:number}|null} target @param {number} dt
  */
-export function updateCamera(cam, w, h, target, dt) {
+export function updateCamera(cam, w, h, target, dt, mapId) {
   cam.w = w;
   cam.h = h;
-  const fitS = Math.min(w, h) / ((MATCH.arenaRadius * 2 + 2) * PPM);
+  const ext = mapExtent(getMap(mapId));
+  const fitS = Math.min(w / ((ext.hw * 2 + 3) * PPM), h / ((ext.hh * 2 + 3) * PPM));
   let S;
   if (cam.mode === 'fit' || !target) {
     S = snapScale(fitS);

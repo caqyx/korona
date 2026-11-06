@@ -8,8 +8,9 @@ import { ringRadius } from '../sim/zones.js';
 import { slotColor } from './palette.js';
 import { worldToArt } from './camera.js';
 import { drawHud } from './hud.js';
-import { getArenaCanvas } from './arena.js';
-import { PPM, getHeroSprite, getBossSprite, getMinionSprite, getTurretSprite, getCrownSprite, getPillarSprite, getProjectileSprite } from './sprites.js';
+import { getArenaCanvas, drawHazardsAnimated, getObstacleSprite, getBushSprite } from './maps/index.js';
+import { getMap } from '../sim/maps.js';
+import { PPM, getHeroSprite, getBossSprite, getMinionSprite, getTurretSprite, getCrownSprite, getProjectileSprite } from './sprites.js';
 import { dither, fillCircle, strokeCircle, fillRing, fillEllipse, line, fillPolygon, strokePolygon, sectorPoints, linePoints, drawSprite } from './pixel.js';
 
 const RED = '#ff2848';
@@ -76,15 +77,18 @@ export function createRenderer(canvas) {
       g.fillStyle = '#0b0b14';
       g.fillRect(0, 0, cam.aw, cam.ah);
       drawStars(g, cam, o.time);
-      const arena = getArenaCanvas();
+      const map = getMap(view.mapId);
+      const arena = getArenaCanvas(map);
       const [ox, oy] = worldToArt(cam, 0, 0);
-      g.drawImage(arena.img, ox - arena.off, oy - arena.off);
+      g.drawImage(arena.img, ox - arena.cx, oy - arena.cy);
+      drawHazardsAnimated(g, map, (x, y) => worldToArt(cam, x, y), o.time);
 
       drawZones(g, cam, view.zones, o.time);
       drawRings(g, cam, fx);
       drawCrownCenter(g, cam, view, o.time);
-      drawEntities(g, cam, view, o, { moving, fx });
+      drawEntities(g, cam, view, o, { moving, fx, map });
       drawProjectiles(g, cam, view, o.time, trails);
+      drawBushes(g, cam, map, o.time);
       drawFxWorld(g, cam, fx);
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -216,15 +220,13 @@ function drawCrownCenter(g, cam, view, time) {
 function drawEntities(g, cam, view, o, st) {
   /** @type {{y:number, draw:()=>void}[]} */
   const list = [];
-  for (const pl of MATCH.pillars) {
+  // przeszkody mapy (cienie są już w tle areny)
+  for (const pl of st.map.obstacles) {
     list.push({
       y: pl.y + pl.r * 0.6,
       draw: () => {
-        const [x, y] = worldToArt(cam, pl.x, pl.y);
-        g.fillStyle = 'rgba(0,0,0,0.4)';
-        fillEllipse(g, x + 2, y + Math.round(pl.r * PPM * 0.55), Math.round(pl.r * PPM), Math.round(pl.r * PPM * 0.45));
-        const s = getPillarSprite(pl.r);
-        drawSprite(g, s, x, y + Math.round(pl.r * PPM * 0.6));
+        const [x, y] = worldToArt(cam, pl.x, pl.y + pl.r * 0.6);
+        drawSprite(g, getObstacleSprite(pl.kind, pl.r), x, y);
       },
     });
   }
@@ -295,6 +297,12 @@ function heroAnim(p, st) {
 
 function drawHero(g, cam, view, p, o, st) {
   const [x, y] = worldToArt(cam, p.x, p.y);
+  // ukryty w krzakach: dla innych prawie niewidoczny (boss/AI go nie widzi), dla siebie półprzezroczysty
+  if (p.hidden) {
+    const viewerIsBoss = view.players.some((v) => o.meIds.includes(v.id) && v.boss);
+    if (!o.meIds.includes(p.id) && viewerIsBoss) return;
+    g.globalAlpha = 0.55;
+  }
   const color = slotColor(p.slot);
   const isMe = o.meIds.includes(p.id);
   // cień + znacznik gracza pod stopami
@@ -344,8 +352,9 @@ function drawHero(g, cam, view, p, o, st) {
     g.fillRect(x + 4, y + 1, 1, 1);
   }
   // serca HP nad głową
-  for (let i = 0; i < HERO.hp; i++) {
-    const hx = x - 6 + i * 4;
+  const maxHp = p.maxHp ?? HERO.hp;
+  for (let i = 0; i < maxHp; i++) {
+    const hx = x - Math.round(maxHp * 2) + i * 4;
     const hy = y - 19;
     g.fillStyle = i < p.hp ? '#ff4d6d' : '#3a3550';
     g.fillRect(hx, hy, 1, 1);
@@ -503,4 +512,13 @@ function drawScreenWorldText(ctx, cam, view, o) {
   }
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
+}
+
+/** Korony krzaków rysowane NAD postaciami (ukrycie). */
+function drawBushes(g, cam, map, time) {
+  for (const z of map.hazards) {
+    if (z.kind !== 'bush') continue;
+    const [x, y] = worldToArt(cam, z.x, z.y);
+    drawSprite(g, getBushSprite(z.r ?? 1.5, Math.floor(time * 2)), x, y);
+  }
 }

@@ -60,7 +60,7 @@ export function createGameView(canvas, mode) {
     updateFx(fx, dt);
     if (!lastFrame) return;
     const me = lastFrame.view.players.find((p) => p.id === lastFrame.meIds[0]);
-    updateCamera(cam, w, h, me && me.alive ? me : null, dt);
+    updateCamera(cam, w, h, me && me.alive ? me : null, dt, lastFrame.view.mapId);
     const v = lastFrame.view;
     setMusic(v.phase === 'ended' ? 'victory' : v.phase === 'transition' ? 'case' : me?.boss ? 'boss' : 'hero');
     renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play, touch: touchVisible() });

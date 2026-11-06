@@ -40,9 +40,113 @@ const SKELETON = [
   ],
 ];
 
+/** Liczba klatek chodu minionów. */
+export const MINION_FRAMES = { skeleton: 2, spiderling: 2, archer: 2, brute: 4 };
+
+const HOOD = ['#241e38', '#3b3158', '#54487a'];
+const WOOD = ['#5a3420', '#8a5430', '#c08a4a'];
+
+/** Szkielet-łucznik w kapturze z łukiem: 15×14, kotwica (6,12). @param {number} f */
+function buildArcher(f) {
+  const b = new PixelBuffer(15, 14);
+  b.stamp(SKELETON[f], BONE, 2, 1);
+  const dy = f;
+  // kaptur i peleryna (z tyłu = po lewej)
+  for (let x = 5; x <= 8; x++) b.set(x, dy, HOOD[1]);
+  for (let x = 4; x <= 9; x++) b.set(x, 1 + dy, x < 6 ? HOOD[0] : HOOD[x === 6 ? 2 : 1]);
+  b.set(4, 2 + dy, HOOD[1]);
+  b.set(5, 2 + dy, HOOD[1]);
+  b.set(4, 3 + dy, HOOD[0]);
+  b.set(9, 2 + dy, HOOD[0]);
+  for (let y = 4; y <= 8; y++) b.set(3, y + dy, HOOD[y < 7 ? 1 : 0]);
+  b.set(2, 8 + dy, HOOD[0]);
+  // kołczan na plecach
+  b.rect(2, 5 + dy, 1, 3, WOOD[1]);
+  b.set(2, 4 + dy, RED);
+  b.set(1, 4 + dy, '#ffd0d8');
+  b.outline(OUTLINE);
+  // łuk + nałożona strzała (osobna warstwa z obrysem)
+  layer(b, (w) => {
+    const my = 7 + dy;
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 5 - 1;
+      const x = Math.round(11 + 1.7 * (1 - t * t));
+      w.set(x, Math.round(my + t * 5), Math.abs(t) > 0.7 ? WOOD[0] : t < 0 ? WOOD[2] : WOOD[1]);
+    }
+    for (let y = my - 4; y <= my + 4; y++) w.set(11, y, '#e8e4d0');
+    for (let x = 7; x <= 12; x++) w.set(x, my, '#b8ae8e');
+    w.set(13, my, '#e8eef8');
+  });
+  return { buf: b, ox: 6, oy: 12 };
+}
+
+/** Osiłek z kości i mięsa (r≈0,7 m): 20×20, kotwica (10,18), 4 klatki chodu. @param {number} f */
+function buildBrute(f) {
+  const b = new PixelBuffer(20, 20);
+  const fl = ramp('#a35d6b');
+  const bn = ['#6b6352', '#b8ae8e', '#f2ecd6'];
+  const lf = [0, 1, 0, -1][f];
+  const bob = f % 2;
+  const swing = [0, 1, 0, -1][f];
+  // tylne ramię
+  layer(b, (t) => t.shaded(5, 11 + bob, 2.2, 3, fl, { max: 2 }));
+  // nogi
+  layer(b, (t) => {
+    t.rect(6 - lf, 14, 3, 4, fl[1]);
+    t.rect(5 - lf, 17, 4, 1, bn[1]);
+    t.rect(11 + lf, 14, 3, 4, fl[2]);
+    t.rect(11 + lf, 17, 4, 1, bn[2]);
+    t.set(12 + lf, 15, bn[2]);
+    t.set(7 - lf, 15, bn[1]);
+  });
+  // tułów
+  layer(b, (t) => {
+    t.shaded(10, 10 + bob, 6.5, 5.2, fl);
+    // szwy na brzuchu
+    for (let x = 6; x <= 12; x++) t.set(x, 12 + bob, x % 2 ? fl[0] : fl[1]);
+    t.set(7, 11 + bob, fl[0]);
+    t.set(11, 13 + bob, fl[0]);
+    // odsłonięte żebra
+    for (let k = 0; k < 3; k++) {
+      t.set(12, 7 + k * 2 + bob, bn[2]);
+      t.set(13, 7 + k * 2 + bob, bn[2]);
+      t.set(14, 8 + k * 2 + bob, bn[1]);
+      t.set(12, 8 + k * 2 + bob, fl[0]);
+    }
+  });
+  // kościane kolce na grzbiecie
+  layer(b, (t) => {
+    t.poly([[4, 8 + bob], [2, 2 + bob], [7, 6 + bob]], bn[2]);
+    t.poly([[7, 6 + bob], [7, 1 + bob], [10, 5 + bob]], bn[1]);
+    t.set(3, 4 + bob, bn[1]);
+  });
+  // czaszka
+  layer(b, (t) => {
+    t.shaded(14.5, 5 + bob, 2.8, 2.6, ['#6b6352', '#b8ae8e', '#d8d0b4', '#f2ecd6', '#ffffff']);
+    t.set(15, 5 + bob, '#39ff9f');
+    t.set(16, 5 + bob, OUTLINE);
+    t.rect(13, 7 + bob, 4, 1, bn[1]);
+    t.set(14, 7 + bob, OUTLINE);
+    t.set(16, 7 + bob, OUTLINE);
+  });
+  // przednie ramię z kościaną maczugą
+  layer(b, (t) => {
+    t.shaded(15, 11 + bob, 2.3, 3, fl);
+    const ex = 17 + swing;
+    const ey = 17 + bob - Math.abs(swing);
+    t.line(16, 12 + bob, ex, ey, bn[1]);
+    t.line(17, 12 + bob, ex + 1, ey, bn[2]);
+    t.ellipse(ex + 0.5, ey, 1.6, 1.6, bn[2]);
+    t.set(ex, ey - 1, '#ffffff');
+  });
+  return { buf: b, ox: 10, oy: 18 };
+}
+
 /** @param {string} kind @param {number} frame */
 export function buildMinion(kind, frame) {
-  const f = mod(frame, 2);
+  const f = mod(frame, MINION_FRAMES[kind] ?? 2);
+  if (kind === 'archer') return buildArcher(f);
+  if (kind === 'brute') return buildBrute(f);
   if (kind === 'spiderling') {
     const b = new PixelBuffer(12, 9);
     const acid = ramp('#d4ff3b');

@@ -50,6 +50,32 @@ const G = {
   ghost: ['...1111...', '..144441..', '.14444441.', '.14k44k41.', '.14k44k41.', '.14444441.', '.1444kk41.', '.14444441.', '.1414141..', '.1.1.1.1..'],
   summon: ['..wwwwww..', '.wwwwwwwww', 'wwwwwwwwww', 'wwkkwwkkWw', 'ww44ww44Ww', 'Wwwwkkwwww', '.Wwwwwwww.', '..wkwkwkW.', '1.wwwwwwW1', '11.W.W.W11'],
 
+  // ---- ulepszenia
+  heartPlus: ['..........', '.rrr..rrr.', 'rprrwwrrrr', 'rpwwwwwwrr', 'rrwwwwwwRr', '.rrrwwrrR.', '..rrwwrR..', '...rrRr...', '....Rr....', '..........'],
+  swordUp: ['.1......ww', '141....wwW', '.1....wwW.', '.....wwW..', '....wwW...', '.yy.wW....', '..yYW.....', '..bYy.....', '.b...y....', 'b.........'],
+  hourglass: ['yyyyyyyyyy', '.YYYYYYYY.', '.W111111W.', '..W2222W..', '...W22W...', '...W.2W...', '..W..2.W..', '.W.42223W.', '.YYYYYYYY.', 'yyyyyyyyyy'],
+  boot: ['...wwww...', '...1223...', '11.1223...', '...1223...', '1..12223..', '...122223.', '11.1222223', '...1222223', '..GGGGGGGG', '..........'],
+  wing: ['..........', 'w4444444..', '.11111113.', '..4444444.', '..1111113.', '...44444..', '...11113..', '....444...', '....113...', '..........'],
+  target: (b, C) => {
+    b.ellipse(5, 5, 4.6, 4.6, C[3]);
+    b.ellipse(5, 5, 3.9, 3.9, C[2]);
+    b.ellipse(5, 5, 2.9, 2.9, C.w);
+    b.ellipse(5, 5, 1.9, 1.9, C[2]);
+    b.rect(4, 4, 2, 2, C.w);
+    b.line(6, 4, 9, 1, C.b);
+    b.set(9, 0, C.y);
+    b.set(8, 0, C.y);
+    b.set(9, 1, C.Y);
+  },
+  // ---- tryby gry
+  survival: ['..wwwwww..', '.wwwwwwwww', '.wkkwwkkw.', '.wkkwwkkW.', '..wwkkwW..', '..wkwkwW..', '..........', '.11..11..1', '1..11..11.', '.22..22..2'],
+  bossFace: ['2........2', '22.1111.22', '.21111112.', '.1ww11ww1.', '.1wk11kw1.', '.21111112.', '.2kkkkkk2.', '.2kwkwkw2.', '..222222..', '...3333...'],
+  gear: (b, C) => {
+    b.ellipse(5, 5, 3.6, 3.6, (x, y, nx, ny) => (nx + ny < -0.3 ? C[1] : nx + ny > 0.5 ? C[3] : C[2]));
+    for (const [x, y] of [[4, 0], [5, 0], [4, 9], [5, 9], [0, 4], [0, 5], [9, 4], [9, 5], [1, 1], [8, 1], [1, 8], [8, 8]]) b.set(x, y, x + y < 9 ? C[1] : C[3]);
+    for (const [x, y] of [[4, 4], [5, 4], [4, 5], [5, 5]]) b.set(x, y, null);
+    b.set(3, 3, C[4]);
+  },
   ring: (b, C) => {
     b.arc(5, 5, 5, C[1]);
     b.arc(5, 5, 3, C[2]);
@@ -191,11 +217,24 @@ const BASIC = {
   crown: ['crown', '#ffd23f'],
   skull: ['skull', '#ff3b5c'],
   heart: ['heart', '#ff3b5c'],
+  'upg:vit': ['heartPlus', '#ff3b5c'],
+  'upg:dmg': ['swordUp', '#ff8a3d'],
+  'upg:cd': ['hourglass', '#7fe7ff'],
+  'upg:spd': ['boot', '#7dff6a'],
+  'upg:dash': ['wing', '#7fe7ff'],
+  'upg:range': ['target', '#ff3b5c'],
+  'mode:crown': ['crown', '#ffd23f'],
+  'mode:survival': ['survival', '#4fc3ff'],
+  'mode:bossrush': ['bossFace', '#ff3b5c'],
+  'mode:custom': ['gear', '#b38cff'],
 };
+
+/** Ikony ulepszeń i trybów gry (poza iconNames(), które zostaje listą ikon HUD). */
+export const EXTRA_ICON_NAMES = ['upg:vit', 'upg:dmg', 'upg:cd', 'upg:spd', 'upg:dash', 'upg:range', 'mode:crown', 'mode:survival', 'mode:bossrush', 'mode:custom'];
 
 /** Lista wszystkich nazw ikon (do testów i podglądu). */
 export function iconNames() {
-  const out = Object.keys(BASIC);
+  const out = Object.keys(BASIC).filter((n) => !EXTRA_ICON_NAMES.includes(n));
   for (const s of Object.keys(SKIN_ICONS)) out.push(`skin:${s}`);
   for (const t of Object.keys(BOSS_ICONS)) for (const a of ['atk', 'q', 'e', 'r']) out.push(`boss:${t}:${a}`);
   return out;

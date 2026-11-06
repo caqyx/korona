@@ -15,6 +15,7 @@
  *  - bohater 24×20, kotwica (10,17); idle 4, walk 4, attack 3 (zamach/cios/wybrzmienie), dash 2, hurt 2 (biały/czerwony)
  *  - boss 56×52, kotwica (28,48); idle 4, walk 4, cast 2, hurt 1 (biała sylwetka); bez korony i cienia
  *  - szkielet 12×14 (kotwica 5,12), pajączek 12×9 (6,7), wieżyczka 15×11 (6,10) — 2 klatki
+ *  - szkielet-łucznik 14×14 (6,12) — 2 klatki; osiłek (brute) 20×20 (10,18) — 4 klatki
  *  - korona 12×9 (6,8) — 4 klatki; filar (2·r·PPM+4) × (0.95·2·r·PPM+5), kotwica środek dołu
  *  - ikony 12×12 (kotwica 6,6); pociski 5–13 px, kotwica środek dołu (ox=w/2, oy=h-1), scythe 4 klatki obrotu
  *
@@ -22,7 +23,7 @@
  */
 import { buildHero, HERO_OX, HERO_OY, HERO_FRAMES } from './sprites/heroes.js';
 import { buildBoss, BOSS_OX, BOSS_OY, BOSS_FRAMES } from './sprites/bosses.js';
-import { buildMinion, buildTurret, buildCrown, buildPillar, buildProjectile } from './sprites/misc.js';
+import { buildMinion, MINION_FRAMES, buildTurret, buildCrown, buildPillar, buildProjectile } from './sprites/misc.js';
 import { buildIcon } from './sprites/icons.js';
 import { mod } from './sprites/pixels.js';
 
@@ -31,6 +32,11 @@ export const PPM = 12;
 
 /** @type {Map<string, Sprite|null>} */
 const cache = new Map();
+
+/** Zamienia PixelBuffer na Sprite (kanwa + kotwica). @param {import('./sprites/pixels.js').PixelBuffer} buf @param {number} ox @param {number} oy @returns {Sprite} */
+export function bufferToSprite(buf, ox, oy) {
+  return toSprite(buf, ox, oy);
+}
 
 /** @param {import('./sprites/pixels.js').PixelBuffer} buf @param {number} ox @param {number} oy @returns {Sprite} */
 function toSprite(buf, ox, oy) {
@@ -84,9 +90,13 @@ export function getBossSprite(type, anim, frame) {
   return cached(`b:${type}:${a}:${f}`, () => toSprite(buildBoss(type, a, f), BOSS_OX, BOSS_OY));
 }
 
-/** @param {'skeleton'|'spiderling'} kind @param {number} frame @returns {Sprite} */
+/**
+ * Miniony: skeleton 12×14 (5,12), spiderling 12×9 (6,7) — 2 klatki;
+ * archer (szkielet łucznik) 14×14 (6,12) — 2 klatki; brute (kościano-mięsny osiłek, r≈0,7 m) 20×20 (10,18) — 4 klatki.
+ * @param {'skeleton'|'spiderling'|'archer'|'brute'} kind @param {number} frame @returns {Sprite}
+ */
 export function getMinionSprite(kind, frame) {
-  const f = mod(frame, 2);
+  const f = mod(frame, MINION_FRAMES[kind] ?? 2);
   return cached(`m:${kind}:${f}`, () => {
     const { buf, ox, oy } = buildMinion(kind, f);
     return toSprite(buf, ox, oy);
@@ -122,6 +132,8 @@ export function getPillarSprite(radius) {
 /**
  * Ikony 12×12 do HUD / przycisków dotykowych.
  * name: 'atk' | 'dash' | `skin:${skin}` (umiejętność skina) | `boss:${type}:${'atk'|'q'|'e'|'r'}` | 'crown' | 'skull' | 'heart'
+ *   | ulepszenia 'upg:vit'|'upg:dmg'|'upg:cd'|'upg:spd'|'upg:dash'|'upg:range'
+ *   | tryby 'mode:crown'|'mode:survival'|'mode:bossrush'|'mode:custom'
  * @param {string} name @returns {Sprite}
  */
 export function getIcon(name) {

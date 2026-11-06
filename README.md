@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Otwórz http://localhost:5173. Bez kluczy Supabase tryb online działa przez `LocalTransport` (karty tej samej przeglądarki — otwórz 2–3 karty, stwórz pokój w jednej, dołącz kodem w pozostałych). Tryb lokalny (jeden ekran, 2–8 graczy: do 4 ludzi + boty) działa zawsze, także offline.
+Otwórz http://localhost:5173. Bez kluczy Supabase tryb online działa przez `LocalTransport` (karty tej samej przeglądarki — otwórz 2–3 karty, stwórz pokój w jednej, dołącz kodem w pozostałych). Tryb lokalny (jeden ekran, 2–8 graczy: do 4 ludzi + boty) działa zawsze, także offline. „Tryb lokalny” otwiera **walkę z botami**: Klasyczny vs boty, Przetrwanie (fale + ulepszenia), Boss Rush (8 bossów po kolei) albo Własna gra; do wyboru mapa (losowa lub jedna z 6: Kamienna Arena, Krater Wulkanu, Lodowa Tundra, Mroczny Las, Stary Cmentarz, Ruiny na Pustyni) i trudność botów.
 
 | Skrypt | Co robi |
 |---|---|
