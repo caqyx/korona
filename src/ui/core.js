@@ -91,6 +91,17 @@ export function createCore() {
     if (e.code === 'Escape' && window.__korona?.mode === 'local') window.__korona.togglePause?.();
   });
 
-  const online = startOnlineUi({ gameView, nickInput, touchRoot, getTouch, params, backToMenu });
+  const online = startOnlineUi({
+    gameView,
+    nickInput,
+    touchRoot,
+    getTouch,
+    params,
+    backToMenu,
+    onMatchRecorded: (state, meId, o) => {
+      const unlocked = recordMatch(state, meId, o);
+      if (unlocked.length) showAchievementToast(unlocked);
+    },
+  });
   return { openLocal, enterOnline: online.enter };
 }
