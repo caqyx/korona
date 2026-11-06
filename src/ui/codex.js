@@ -25,7 +25,7 @@ export const SKIN_TEXT = {
     cd: S.lucznik.ability.cd,
   },
   lotrzyk: {
-    role: 'Kradzież ostatniego ciosu',
+    role: 'Wybuchowe obrażenia z bliska',
     attack: `Sztylet ${S.lotrzyk.attack.arc}°, ${S.lotrzyk.attack.dmg} dmg, szybki`,
     ability: 'Krok cienia',
     abilityDesc: `Teleport za plecy bossa (do ${S.lotrzyk.ability.range} m), następny atak ×${S.lotrzyk.ability.mult}.`,
@@ -42,7 +42,7 @@ export const SKIN_TEXT = {
     role: 'Presja obszarowa',
     attack: `Klucz, ${S.inzynier.attack.dmg} dmg`,
     ability: 'Wieżyczka',
-    abilityDesc: `Działko na ${S.inzynier.ability.life} s, strzela w bossa po ${S.inzynier.ability.dmg} dmg. Jego ostatni cios jest Twój.`,
+    abilityDesc: `Działko na ${S.inzynier.ability.life} s, strzela w bossa po ${S.inzynier.ability.dmg} dmg. Jego obrażenia liczą się jako Twoje.`,
     cd: S.inzynier.ability.cd,
   },
   mag: {

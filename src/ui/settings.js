@@ -45,7 +45,7 @@ export async function openSettings() {
             <tr><th></th><th>Klaw. + mysz</th><th>Klaw. 2</th><th>Pad</th><th>Dotyk</th></tr>
             ${CONTROLS.map((r) => `<tr>${r.map((c, i) => (i ? `<td>${c ? `<kbd>${c}</kbd>` : ''}</td>` : `<th>${c}</th>`)).join('')}</tr>`).join('')}
           </table>
-          <p class="small">Zadaj bossowi ostatni cios, by przejąć koronę. Każdy atak bossa ma czerwony telegraf — uciekaj dashem.</p>
+          <p class="small">Zadaj bossowi najwięcej obrażeń, by przejąć koronę po jego upadku. Każdy atak bossa ma czerwony telegraf — uciekaj dashem.</p>
         </section>
       </div>`,
   });

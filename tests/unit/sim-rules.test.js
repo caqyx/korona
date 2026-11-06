@@ -110,15 +110,15 @@ describe('boss kill / crown takeover', () => {
     expect(state.crown.holderId).toBe('X');
   });
 
-  it('assist: >=25% of boss maxHp without last hit gets +2, below threshold gets nothing', () => {
+  it('korona dla najwięcej obrażeń: 30% dostaje koronę i +10, ≥25% asysta +2, mniej — nic, zabójca bez obrażeń — nic', () => {
     const { state, boss, heroes } = bossArena('burza', [
       { id: 'X', skin: 'rycerz', x: -1.7, y: 0 },
       { id: 'A', x: 0, y: 10 },
       { id: 'L', x: 10, y: 3 },
       { id: 'T', x: -10, y: 3 },
     ]);
-    const [, a, low, exact] = heroes;
-    const max = boss.boss.maxHp; // 120 * 4
+    const [killer, a, low, exact] = heroes;
+    const max = boss.boss.maxHp;
     expect(max).toBe(BOSS_COMMON.hpPerHero * 4);
     withRng(state, () => {
       hurtBoss(state, boss, 0.3 * max, 'A');
@@ -128,12 +128,33 @@ describe('boss kill / crown takeover', () => {
     boss.boss.hp = 5;
     step(state, { X: inp({ buttons: BTN.ATTACK }) });
     expect(state.phase).toBe('transition');
-    expect(a.score).toBe(SCORE.assist);
+    expect(state.transition.newBossId).toBe('A');
+    expect(a.score).toBe(SCORE.lastHit);
+    expect(a.lastHits).toBe(1);
     expect(exact.score).toBe(SCORE.assist);
     expect(low.score).toBe(0);
-    expect(heroes[0].score).toBe(SCORE.lastHit);
-    expect(state.events.filter((e) => e.t === 'assist').map((e) => e.id).sort()).toEqual(['A', 'T']);
+    expect(killer.score).toBe(0);
+    expect(state.events.filter((e) => e.t === 'assist').map((e) => e.id).sort()).toEqual(['T']);
+    expect(state.events.find((e) => e.t === 'lastHit')).toMatchObject({ id: 'A', killer: 'X', pct: 30 });
   });
+
+  it('scenariusz: zadałem 65% obrażeń, ale dobił inny gracz — to ja losuję skrzynkę i zostaję bossem', () => {
+    const { state, boss, heroes } = bossArena('kolos', [
+      { id: 'JA', x: -6, y: 0 },
+      { id: 'INNY', skin: 'rycerz', x: -1.7, y: 0 },
+    ]);
+    const max = boss.boss.maxHp;
+    withRng(state, () => hurtBoss(state, boss, 0.65 * max / BOSSES.kolos.dmgTakenMul, 'JA'));
+    boss.boss.hp = 3;
+    step(state, { INNY: inp({ buttons: BTN.ATTACK }) });
+    expect(state.phase).toBe('transition');
+    expect(state.transition.newBossId).toBe('JA');
+    expect(heroes[0].score).toBe(SCORE.lastHit);
+    for (let i = 0; i < Math.ceil(MATCH.transitionTime / DT) + 2; i++) step(state, {});
+    expect(heroes[0].boss).toBeTruthy();
+    expect(heroes[1].boss).toBe(null);
+  });
+
 });
 
 describe('scoring', () => {

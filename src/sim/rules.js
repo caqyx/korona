@@ -131,25 +131,42 @@ export function respawnHero(state, p, rng, invuln) {
 }
 
 /** Ostatni cios w bossa. @param {MatchState} state @param {Player} bossP @param {string} killerId */
+/**
+ * Bohater z największymi obrażeniami w bieżącym panowaniu (remis: zabójca, potem id).
+ * To on przejmuje koronę — nie ten, kto zadał ostatni cios.
+ * @param {MatchState} state @param {string} killerId
+ */
+export function topDamageDealer(state, killerId) {
+  let best = null;
+  for (const p of state.players) {
+    if (p.boss || p.ai || !p.connected || p.dnf || p.dmgToBoss <= 0) continue;
+    if (!best || p.dmgToBoss > best.dmgToBoss + 1e-9) best = p;
+    else if (Math.abs(p.dmgToBoss - best.dmgToBoss) <= 1e-9 && (p.id === killerId || (best.id !== killerId && p.id < best.id))) best = p;
+  }
+  return best;
+}
+
+/** Boss pokonany: koronę i +10 dostaje gracz z największymi obrażeniami. @param {MatchState} state @param {Player} bossP @param {string} killerId */
 export function onBossKilled(state, bossP, killerId) {
   if (state.mode && state.mode !== 'crown') return onModeBossKilled(state, bossP, killerId);
   const b = /** @type {import('./state.js').BossState} */ (bossP.boss);
   b.dying = true;
   b.cast = null;
   b.channel = null;
-  const killer = state.players.find((p) => p.id === killerId && !p.boss);
+  const top = topDamageDealer(state, killerId);
   for (const p of state.players) {
-    if (p.boss || p.id === killerId) continue;
+    if (p.boss || (top && p.id === top.id)) continue;
     if (p.dmgToBoss >= SCORE.assistThreshold * b.maxHp) {
       p.score += SCORE.assist;
       state.events.push({ t: 'assist', id: p.id });
     }
   }
-  if (killer) {
-    killer.score += SCORE.lastHit;
-    killer.lastHits += 1;
-    state.events.push({ t: 'lastHit', id: killer.id, boss: bossP.id, bossType: b.type });
-    startTransitionRng(state, killer.id, bossP.id, true);
+  if (top) {
+    top.score += SCORE.lastHit;
+    top.lastHits += 1;
+    const pct = Math.round((top.dmgToBoss / Math.max(1, b.maxHp)) * 100);
+    state.events.push({ t: 'lastHit', id: top.id, killer: killerId, pct, boss: bossP.id, bossType: b.type });
+    startTransitionRng(state, top.id, bossP.id, true);
   } else {
     dropCrownAfterBossDeath(state, bossP);
   }

@@ -6,7 +6,7 @@
  */
 import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, HERO, BOSS_COMMON } from './config.js';
 import { createPlayer } from './state.js';
-import { startTransition, respawnHero, endMatch, leader } from './rules.js';
+import { startTransition, respawnHero, endMatch, leader, topDamageDealer } from './rules.js';
 import { spawnWaveMinion } from './minions.js';
 import { edgePoint } from './physics.js';
 import { addZone } from './zones.js';
@@ -144,12 +144,13 @@ export function onModeBossKilled(state, bossP, killerId) {
   b.dying = true;
   b.cast = null;
   b.channel = null;
-  const killer = state.players.find((p) => p.id === killerId && !p.ai);
+  const killer = topDamageDealer(state, killerId);
   if (killer) {
     killer.lastHits += 1;
     killer.score += state.mode === 'survival' ? MODES.survival.bossScore : MODES.bossrush.killScore;
-    state.events.push({ t: 'lastHit', id: killer.id, boss: bossP.id, bossType: b.type });
+    state.events.push({ t: 'lastHit', id: killer.id, killer: killerId, pct: Math.round((killer.dmgToBoss / Math.max(1, b.maxHp)) * 100), boss: bossP.id, bossType: b.type });
   }
+  for (const p of state.players) p.dmgToBoss = 0;
   state.events.push({ t: 'bossDie', x: bossP.x, y: bossP.y, bossType: b.type });
   bossP.boss = null;
   bossP.alive = false;

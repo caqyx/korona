@@ -145,7 +145,7 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
         sound('crown');
         break;
       case 'lastHit':
-        addFeed(fx, `${nick(e.id)} — ostatni cios +10`, '#ffd23f');
+        addFeed(fx, `${nick(e.id)} — najwięcej obrażeń (${e.pct ?? '?'}%) +10`, '#ffd23f');
         if (e.id === meId) vib([30, 30, 60]);
         sound('lastHit');
         break;

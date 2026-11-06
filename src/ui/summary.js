@@ -44,7 +44,7 @@ export function showSummary(state, o) {
   $('#summary-table').innerHTML =
     (state.mode && state.mode !== 'crown'
       ? '<tr><th>#</th><th>Gracz</th><th>Skin</th><th>Pkt</th><th>—</th><th>Bossowie dobici</th><th>—</th><th>Śmierci</th></tr>'
-      : '<tr><th>#</th><th>Gracz</th><th>Skin</th><th>Pkt</th><th>Korona (s)</th><th>Ostatnie ciosy</th><th>Zabójstwa bossa</th><th>Śmierci</th></tr>') +
+      : '<tr><th>#</th><th>Gracz</th><th>Skin</th><th>Pkt</th><th>Korona (s)</th><th>Przejęte korony</th><th>Zabójstwa bossa</th><th>Śmierci</th></tr>') +
     sorted
       .map(
         (p, i) =>

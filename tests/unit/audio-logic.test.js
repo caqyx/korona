@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseNote, noteToMidi, midiToFreq, envelopePoints, jitter, songStepAt, stepDuration, pickStartTime } from '../../src/audio/theory.js';
+import { parseNote, noteToMidi, midiToFreq, midiToName, envelopePoints, jitter, songStepAt, stepDuration, pickStartTime } from '../../src/audio/theory.js';
 import { parseTrack, compileSong } from '../../src/audio/pattern.js';
-import { SONGS } from '../../src/audio/songs.js';
+import { SONGS, PLAYLISTS, ROTATING, pickSong, loopsBeforeRotate, rotationStep } from '../../src/audio/playlist.js';
 import { VoiceLimiter } from '../../src/audio/voices.js';
 import { STORAGE_KEY, DEFAULT_SETTINGS, sanitizeSettings, loadSettings, saveSettings, sliderToGain } from '../../src/audio/settings.js';
 
@@ -110,11 +110,14 @@ describe('tracker', () => {
     });
   }
 
-  it('case trwa 2 takty = 3.2 s, victory się nie zapętla', () => {
-    const c = compileSong(SONGS.case);
+  it('case trwa 2 takty = 3.2 s, victory/defeat to krótkie dżingle bez pętli', () => {
+    const c = compileSong(SONGS['case-roll']);
     expect(c.len * c.stepDur).toBeCloseTo(3.2);
-    expect(compileSong(SONGS.victory).loop).toBe(false);
-    expect(SONGS.hero.bpm).toBe(140);
+    for (const id of ['victory-fanfare', 'defeat-lament']) {
+      const s = compileSong(SONGS[id]);
+      expect(s.loop).toBe(false);
+      expect(s.len * s.stepDur).toBeLessThan(6);
+    }
   });
 });
 
@@ -185,5 +188,83 @@ describe('sfx.js w Node (bez WebAudio)', () => {
       'ui', 'pickup', 'respawn', 'lastHit', 'bossDie', 'warn', 'heal', 'turret', 'blink', 'web', 'freeze', 'roar', 'countdown', 'lowhp']) {
       expect(m.SOUND_NAMES).toContain(n);
     }
+  });
+});
+
+describe('playlisty i rotacja', () => {
+  it('każdy utwór z playlist istnieje, ma tytuł i każdy utwór jest na jakiejś playliście', () => {
+    const listed = new Set(Object.values(PLAYLISTS).flat());
+    for (const id of listed) {
+      expect(SONGS[id], id).toBeTruthy();
+      expect(SONGS[id].title).toBeTruthy();
+    }
+    expect([...listed].sort()).toEqual(Object.keys(SONGS).sort());
+  });
+
+  it('wymagana liczba utworów i tempa', () => {
+    expect(PLAYLISTS.menu.length).toBeGreaterThanOrEqual(3);
+    expect(PLAYLISTS.hero.length).toBeGreaterThanOrEqual(3);
+    expect(PLAYLISTS.boss.length).toBeGreaterThanOrEqual(3);
+    expect(PLAYLISTS.survival.length).toBeGreaterThanOrEqual(2);
+    expect(PLAYLISTS.bossrush.length).toBeGreaterThanOrEqual(2);
+    for (const id of PLAYLISTS.hero) {
+      expect(SONGS[id].bpm).toBeGreaterThanOrEqual(130);
+      expect(SONGS[id].bpm).toBeLessThanOrEqual(160);
+    }
+    for (const mode of ['menu', 'hero', 'boss', 'survival', 'bossrush']) {
+      const songs = PLAYLISTS[mode].map((id) => SONGS[id]);
+      // różne melodie i różne tempa/tonacje w obrębie trybu
+      expect(new Set(songs.map((s) => s.channels.find((c) => c.id === 'lead').track)).size).toBe(songs.length);
+      expect(new Set(songs.map((s) => `${s.bpm}/${s.mood}`)).size).toBe(songs.length);
+    }
+  });
+
+  it('pickSong nigdy nie powtarza poprzedniego utworu (gdy jest wybór)', () => {
+    for (const [mode, list] of Object.entries(PLAYLISTS)) {
+      let last = null;
+      const seen = new Set();
+      for (let i = 0; i < 500; i++) {
+        const s = pickSong(list, last);
+        expect(list).toContain(s);
+        if (list.length > 1) expect(s, mode).not.toBe(last);
+        seen.add(s);
+        last = s;
+      }
+      expect(seen.size).toBe(list.length); // wszystkie się pojawiają
+    }
+    expect(pickSong(['a', 'b'], 'a', () => 0.9999)).toBe('b');
+    expect(pickSong(['a'], 'a')).toBe('a');
+    expect(pickSong([], null)).toBeNull();
+  });
+
+  it('rotacja po ≥2 pętlach, na granicy pętli, po ≥ ~36 s', () => {
+    expect(loopsBeforeRotate(27)).toBe(2);
+    expect(loopsBeforeRotate(13)).toBe(3);
+    for (const mode of ROTATING) {
+      for (const id of PLAYLISTS[mode]) {
+        const c = compileSong(SONGS[id]);
+        const r = rotationStep(c);
+        const body = c.len - c.loopStart;
+        expect(c.loop).toBe(true);
+        expect(r).toBeGreaterThanOrEqual(c.len + body);
+        expect((r - c.len) % body).toBe(0);
+        expect(r % c.stepsPerBar).toBe(0);
+        expect(r * c.stepDur).toBeGreaterThanOrEqual(36);
+        expect(r * c.stepDur).toBeLessThan(120);
+      }
+    }
+  });
+
+  it('midiToName odwraca noteToMidi', () => {
+    for (let m = 24; m < 100; m++) expect(noteToMidi(midiToName(m))).toBe(m);
+  });
+
+  it('listSongs zwraca opis utworów trybu', async () => {
+    const { listSongs } = await import('../../src/audio/sfx.js');
+    expect(listSongs('hero').map((s) => s.id)).toEqual(PLAYLISTS.hero);
+    expect(listSongs('nope')).toEqual([]);
+    const all = listSongs();
+    expect(Object.keys(all)).toEqual(Object.keys(PLAYLISTS));
+    expect(all.case[0].seconds).toBeCloseTo(3.2);
   });
 });

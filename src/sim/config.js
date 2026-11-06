@@ -76,14 +76,14 @@ export const SKINS = {
   rycerz: {
     name: 'Rycerz',
     color: '#4fc3ff',
-    attack: { kind: 'melee', dmg: 15, cd: 1.8, range: 1.7, arc: 120 },
+    attack: { kind: 'melee', dmg: 17.5, cd: 1.8, range: 1.7, arc: 120 },
     ability: { cd: 8, duration: 1.5, arc: 140, reflectDmg: 8 },
   },
   lucznik: {
     name: 'Łucznik',
     color: '#7dff6a',
-    attack: { kind: 'projectile', dmg: 4.5, cd: 1.25, range: 9, speed: 20, r: 0.15 },
-    ability: { cd: 7, charge: 0.6, dmg: 22, range: 16, speed: 30, r: 0.25 },
+    attack: { kind: 'projectile', dmg: 4, cd: 1.25, range: 9, speed: 20, r: 0.15 },
+    ability: { cd: 7, charge: 0.6, dmg: 20, range: 16, speed: 30, r: 0.25 },
   },
   lotrzyk: {
     name: 'Łotrzyk',
@@ -94,14 +94,14 @@ export const SKINS = {
   kaplan: {
     name: 'Kapłan',
     color: '#ffe066',
-    attack: { kind: 'projectile', dmg: 7.5, cd: 1.3, range: 5, speed: 14, r: 0.2 },
+    attack: { kind: 'projectile', dmg: 8, cd: 1.3, range: 5, speed: 14, r: 0.2 },
     ability: { cd: 14, radius: 3, heal: 1 },
   },
   inzynier: {
     name: 'Inżynier',
     color: '#ff9f43',
-    attack: { kind: 'melee', dmg: 13, cd: 1.8, range: 1.5, arc: 90 },
-    ability: { cd: 15, life: 6, dmg: 5, fireEvery: 1.6, range: 8, speed: 18 },
+    attack: { kind: 'melee', dmg: 14, cd: 1.8, range: 1.5, arc: 90 },
+    ability: { cd: 15, life: 6, dmg: 5.5, fireEvery: 1.6, range: 8, speed: 18 },
   },
 };
 
@@ -109,20 +109,20 @@ Object.assign(SKINS, {
   mag: {
     name: 'Mag',
     color: '#6f8bff',
-    attack: { kind: 'projectile', dmg: 6.5, cd: 1.5, range: 7, speed: 12, r: 0.25, proj: 'fireorb' },
-    ability: { cd: 11, range: 8, telegraph: 0.7, radius: 1.6, dmg: 21 },
+    attack: { kind: 'projectile', dmg: 6.2, cd: 1.5, range: 7, speed: 12, r: 0.25, proj: 'fireorb' },
+    ability: { cd: 11, range: 8, telegraph: 0.7, radius: 1.6, dmg: 20 },
   },
   barbarzynca: {
     name: 'Barbarzyńca',
     color: '#ff5a3c',
-    attack: { kind: 'melee', dmg: 14, cd: 2.0, range: 1.6, arc: 150 },
+    attack: { kind: 'melee', dmg: 12.5, cd: 2.0, range: 1.6, arc: 150 },
     ability: { cd: 12, duration: 4, atkCdMul: 0.45, speedMul: 1.2 },
   },
   druid: {
     name: 'Druid',
     color: '#55d36b',
-    attack: { kind: 'projectile', dmg: 5.5, cd: 1.3, range: 7.5, speed: 15, r: 0.18, proj: 'thorn' },
-    ability: { cd: 12, range: 8, telegraph: 0.4, radius: 2.2, life: 3, slow: 0.45, dmg: 3, tick: 0.5 },
+    attack: { kind: 'projectile', dmg: 5.8, cd: 1.3, range: 7.5, speed: 15, r: 0.18, proj: 'thorn' },
+    ability: { cd: 12, range: 8, telegraph: 0.4, radius: 2.2, life: 3, slow: 0.45, dmg: 2.8, tick: 0.5 },
   },
 });
 
