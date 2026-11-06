@@ -19,7 +19,7 @@ export const lucznik = {
     if (h.abilT <= 0) {
       h.abilT = 0;
       h.atkCd = Math.max(h.atkCd, SKINS.lucznik.attack.cd);
-      fireHeroProjectile(state, h, A.dmg, A.speed, A.range, A.r, true, 'pierce');
+      fireHeroProjectile(state, h, A.dmg * (h.mods?.dmg ?? 1), A.speed, A.range, A.r, true, 'pierce');
       state.events.push({ t: 'ability', id: h.id, skin: 'lucznik' });
     }
   },

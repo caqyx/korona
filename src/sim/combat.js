@@ -1,4 +1,4 @@
-import { HERO, BOSS_COMMON, BOSSES, SKINS, FEVER } from './config.js';
+import { HERO, BOSS_COMMON, BOSSES, SKINS, FEVER, MINIONS } from './config.js';
 import { angleDiff } from './vec.js';
 import { onBossKilled, onHeroKilled } from './rules.js';
 
@@ -110,7 +110,7 @@ export function heroMelee(state, h, dmg, range, arc) {
   }
   for (const m of state.minions) {
     if (m.hp > 0 && inCone(h.x, h.y, ang, range, arc, m.x, m.y, m.r)) {
-      damageMinion(state, m, dmg);
+      damageMinion(state, m, dmg, h.id);
       hit = true;
     }
   }
@@ -119,7 +119,18 @@ export function heroMelee(state, h, dmg, range, arc) {
 }
 
 /** @param {MatchState} state @param {any} m @param {number} dmg */
-export function damageMinion(state, m, dmg) {
+export function damageMinion(state, m, dmg, attackerId) {
+  if (m.hp <= 0) return;
   m.hp -= dmg;
-  if (m.hp <= 0) state.events.push({ t: 'minionDie', x: m.x, y: m.y });
+  state.events.push({ t: 'minionHit', x: m.x, y: m.y, dmg: Math.round(dmg) });
+  if (m.hp > 0) return;
+  state.events.push({ t: 'minionDie', x: m.x, y: m.y, kind: m.kind, by: attackerId });
+  // w trybach z falami zabójstwa przeciwników dają punkty (w Koronie nie — pasywka Nekromanty)
+  if (state.mode && state.mode !== 'crown' && attackerId) {
+    const a = state.players.find((p) => p.id === attackerId);
+    if (a && !a.boss) {
+      a.score += MINIONS[m.kind]?.score ?? 1;
+      if (state.modeData) state.modeData.kills = (state.modeData.kills || 0) + 1;
+    }
+  }
 }

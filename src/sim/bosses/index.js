@@ -1,6 +1,6 @@
 import { BOSSES, BOSS_COMMON } from '../config.js';
 import { BTN } from '../state.js';
-import { aimAt } from '../heroes/index.js';
+import { aimAt, glide } from '../heroes/index.js';
 import { kolos } from './kolos.js';
 import { cien } from './cien.js';
 import { nekromanta } from './nekromanta.js';
@@ -49,7 +49,7 @@ export function startCast(state, p, ab, input, rng) {
   if (ab !== 'atk' && b.overloaded) b.overloaded = false;
   b.cast = { ab, t: cfg.telegraph, total: cfg.telegraph, ax: input.aimX, ay: input.aimY, area, data: null };
   /** @type {any} */ (BOSS_KITS)[b.type][ab].telegraph(state, p, b.cast, rng);
-  b.cd[ab] = cfg.cd;
+  b.cd[ab] = cfg.cd * (b.cdMul ?? 1);
   state.events.push({ t: 'bossCast', id: p.id, ab, bossType: b.type });
 }
 
@@ -71,6 +71,5 @@ function moveBoss(p, input, dt, mul) {
     mx /= l;
     my /= l;
   }
-  p.x += mx * BOSS_COMMON.speed * mul * dt;
-  p.y += my * BOSS_COMMON.speed * mul * dt;
+  glide(p, mx * BOSS_COMMON.speed * mul, my * BOSS_COMMON.speed * mul, dt);
 }

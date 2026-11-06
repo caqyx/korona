@@ -60,7 +60,7 @@ function heroProjectileHits(state, pr, bossP) {
   for (const m of state.minions) {
     if (m.hp <= 0 || pr.hit.includes(m.id)) continue;
     if (Math.hypot(pr.x - m.x, pr.y - m.y) <= m.r + pr.r) {
-      damageMinion(state, m, pr.dmg);
+      damageMinion(state, m, pr.dmg, pr.ownerId);
       if (!pr.pierce) return false;
       pr.hit.push(m.id);
     }

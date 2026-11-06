@@ -1,5 +1,7 @@
 import { MATCH, HERO, SKIN_IDS } from './config.js';
 import { createRngState } from './rng.js';
+import { mapSpawnPoint } from './physics.js';
+import { initMode } from './modes.js';
 
 /**
  * @typedef {Object} Input
@@ -74,11 +76,11 @@ export const emptyInput = () => ({ moveX: 0, moveY: 0, aimX: 0, aimY: 0, buttons
  */
 
 /**
- * @param {string} id @param {string} nick @param {string} skin @param {number} slot
+ * @param {string} id @param {string} nick @param {string} skin @param {number} slot @param {string} [mapId]
  * @returns {Player}
  */
-export function createPlayer(id, nick, skin, slot) {
-  const [x, y] = spawnPoint(slot);
+export function createPlayer(id, nick, skin, slot, mapId) {
+  const [x, y] = spawnPoint(slot, mapId);
   return {
     id,
     nick: String(nick).slice(0, 16),
@@ -117,13 +119,22 @@ export function createPlayer(id, nick, skin, slot) {
     connected: true,
     dnf: false,
     boss: null,
+    /** prędkość (lód) */
+    vx: 0,
+    vy: 0,
+    maxHp: HERO.hp,
+    /** modyfikatory z ulepszeń (tryby z botami) */
+    mods: { dmg: 1, cd: 1, spd: 1, dashCd: 1, range: 1 },
+    ai: false,
+    hidden: false,
+    revealT: 0,
+    onIce: false,
   };
 }
 
 /** @param {number} i */
-export function spawnPoint(i) {
-  const a = (i / MATCH.spawnCount) * Math.PI * 2 + Math.PI / 8;
-  return [Math.round(Math.cos(a) * MATCH.spawnRadius * 1e4) / 1e4, Math.round(Math.sin(a) * MATCH.spawnRadius * 1e4) / 1e4];
+export function spawnPoint(i, mapId) {
+  return mapSpawnPoint(i, mapId);
 }
 
 /**
@@ -134,13 +145,24 @@ export function spawnPoint(i) {
  * @property {number} [timeLimit]
  * @property {number} [countdown]
  * @property {number} [maxPlayers]
+ * @property {string} [mapId]
+ * @property {'crown'|'survival'|'bossrush'} [mode]
+ * @property {'easy'|'normal'|'hard'} [aiLevel]
  */
 
 /** @param {MatchOptions} opts */
 export function createMatchState(opts) {
-  const players = opts.players.slice(0, opts.maxPlayers ?? MATCH.maxPlayers).map((p, i) => createPlayer(p.id, p.nick, p.skin, i));
+  const state = createBaseState(opts);
+  initMode(state);
+  return state;
+}
+
+/** @param {MatchOptions} opts */
+function createBaseState(opts) {
+  const players = opts.players.slice(0, opts.maxPlayers ?? MATCH.maxPlayers).map((p, i) => createPlayer(p.id, p.nick, p.skin, i, opts.mapId ?? 'arena'));
   return {
     v: 1,
+    mapId: opts.mapId ?? 'arena',
     tick: 0,
     time: 0,
     matchTime: 0,
@@ -160,12 +182,18 @@ export function createMatchState(opts) {
     /** @type {any[]} */ turrets: [],
     /** @type {any[]} */ events: [],
     nextId: 1,
+    mode: opts.mode ?? 'crown',
+    aiLevel: opts.aiLevel ?? 'normal',
+    aiRng: createRngState((opts.seed ^ 0x5f3759df) >>> 0),
+    /** @type {any} */ modeData: null,
+    /** @type {any} */ offers: null,
+    mapT: 0,
     winnerId: /** @type {string|null} */ (null),
     endReason: /** @type {string|null} */ (null),
   };
 }
 
-/** @typedef {ReturnType<typeof createMatchState>} MatchState */
+/** @typedef {ReturnType<typeof createBaseState>} MatchState */
 
 /** @param {MatchState} state */
 export const nextId = (state) => state.nextId++;

@@ -1,5 +1,7 @@
 import { HERO, SKINS, SKIN_IDS } from '../config.js';
 import { BTN } from '../state.js';
+import { HAZARD } from '../maps.js';
+import { applyUpgradeEffect } from '../modes.js';
 import { basicAttack } from './common.js';
 import { respawnHero } from '../rules.js';
 import { rycerz } from './rycerz.js';
@@ -17,6 +19,10 @@ export const HERO_ABILITIES = { rycerz, lucznik, lotrzyk, kaplan, inzynier };
  */
 export function updateHero(state, h, input, pressed, dt, rng) {
   tickHeroTimers(h, dt);
+  if (state.offers && state.offers[h.id]) {
+    pickUpgrade(state, h, input, pressed);
+    return;
+  }
   if (!h.alive) {
     if (input.skin && SKIN_IDS.includes(/** @type {any} */ (input.skin))) h.skin = input.skin;
     h.respawnT -= dt;
@@ -31,7 +37,32 @@ export function updateHero(state, h, input, pressed, dt, rng) {
   ab.update(state, h, dt);
   if (state.phase !== 'playing') return;
   if (input.buttons & BTN.ATTACK && h.atkCd <= 0 && h.dashT <= 0 && !ab.blocksAttack(h)) basicAttack(state, h);
-  if (pressed & BTN.ABILITY && h.abilCd <= 0 && h.abilT <= 0) ab.start(state, h);
+  if (pressed & BTN.ABILITY && h.abilCd <= 0 && h.abilT <= 0 && ab.start(state, h)) {
+    h.abilCd *= h.mods?.cd ?? 1;
+    h.revealT = 1;
+  }
+}
+
+/**
+ * Wybór ulepszenia inputem (działa na każdym urządzeniu): ruch w lewo/prawo zmienia kartę,
+ * atak zatwierdza. @param {any} state @param {any} h
+ */
+function pickUpgrade(state, h, input, pressed) {
+  const o = state.offers[h.id];
+  if (o.picked !== null) return;
+  const dir = input.moveX > 0.5 ? 1 : input.moveX < -0.5 ? -1 : 0;
+  if (dir !== 0 && dir !== o.lastDir) o.sel = (o.sel + dir + o.choices.length) % o.choices.length;
+  o.lastDir = dir;
+  if (pressed & BTN.ATTACK) applyUpgrade(state, h, o.choices[o.sel]);
+}
+
+/** @param {any} state @param {any} h @param {string} id */
+export function applyUpgrade(state, h, id) {
+  const o = state.offers?.[h.id];
+  if (!o || o.picked !== null) return;
+  o.picked = id;
+  applyUpgradeEffect(h, id);
+  state.events.push({ t: 'upgrade', id: h.id, upg: id });
 }
 
 /** @param {import('../state.js').Player} h @param {number} dt */
@@ -75,7 +106,7 @@ function startDash(state, h, input) {
   h.dashX = dx / l;
   h.dashY = dy / l;
   h.dashT = HERO.dashDuration;
-  h.dashCd = HERO.dashCooldown;
+  h.dashCd = HERO.dashCooldown * (h.mods?.dashCd ?? 1);
   state.events.push({ t: 'dash', id: h.id, x: h.x, y: h.y });
 }
 
@@ -88,10 +119,24 @@ function moveHero(h, input, dt, mul) {
     mx /= l;
     my /= l;
   }
-  const sp = HERO.speed * mul * (h.slowT > 0 ? h.slowMul : 1);
-  h.x += mx * sp * dt;
-  h.y += my * sp * dt;
+  const sp = HERO.speed * mul * (h.slowT > 0 ? h.slowMul : 1) * (h.mods?.spd ?? 1);
+  glide(h, mx * sp, my * sp, dt);
 }
+
+/** Ruch z poślizgiem na lodzie (bezwładność), poza lodem natychmiastowy. */
+export function glide(p, vx, vy, dt) {
+  if (p.onIce) {
+    const k = Math.min(1, ICE_ACCEL * dt);
+    p.vx += (vx - p.vx) * k;
+    p.vy += (vy - p.vy) * k;
+  } else {
+    p.vx = vx;
+    p.vy = vy;
+  }
+  p.x += p.vx * dt;
+  p.y += p.vy * dt;
+}
+const ICE_ACCEL = HAZARD.ice.accel;
 
 /** Ruch dashu i odrzutu — wykonywany w fazie fizyki. @param {import('../state.js').Player} p @param {number} dt */
 export function applyImpulses(p, dt) {

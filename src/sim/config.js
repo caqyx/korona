@@ -238,3 +238,48 @@ export const RARITY = {
 export const CASE = { stripLength: 40, winIndex: 33, spin: 2.6 };
 
 export const PROJECTILE_MAX = 400;
+
+/** Przeciwnicy fal (tryb Przetrwanie). Statystyki bazowe dla fali 1. */
+export const MINIONS = {
+  skeleton: { hp: 15, speed: 2.6, radius: 0.45, atkRange: 1.0, atkTelegraph: 0.6, atkCd: 2.4, score: 1, cost: 1, minWave: 1 },
+  spiderling: { hp: 8, speed: 4.2, radius: 0.3, atkRange: 0.7, atkTelegraph: 0.5, atkCd: 1.6, score: 1, cost: 1, minWave: 2 },
+  archer: { hp: 12, speed: 2.2, radius: 0.4, atkRange: 7, keep: 5.5, atkTelegraph: 0.6, atkCd: 2.8, shotSpeed: 9, score: 2, cost: 2, minWave: 3 },
+  brute: { hp: 60, speed: 1.7, radius: 0.7, atkRange: 1.4, slamRadius: 1.9, atkTelegraph: 0.8, atkCd: 3.2, score: 4, cost: 4, minWave: 4 },
+};
+
+/** Tryby gry. */
+export const MODES = {
+  crown: { name: 'Korona' },
+  survival: {
+    name: 'Przetrwanie',
+    budgetBase: 6,
+    budgetPerWave: 3,
+    hpPerWave: 0.12,
+    bossEvery: 5,
+    spawnEvery: 0.55,
+    spawnTelegraph: 0.6,
+    intermission: 12,
+    preWave: 2.5,
+    bossScore: 15,
+    waveClearScore: 5,
+  },
+  bossrush: { name: 'Boss Rush', bosses: 8, hpGrowth: 0.3, cdShrink: 0.06, minCdMul: 0.6, respawn: 5, intermission: 12, killScore: 10 },
+};
+
+/** Ulepszenia między falami / bossami. */
+export const UPGRADES = {
+  vit: { name: '+1 serce', desc: 'Maks. HP +1 i pełne leczenie' },
+  dmg: { name: 'Ostrze', desc: 'Obrażenia +20%' },
+  cd: { name: 'Klepsydra', desc: 'Czasy odnowienia −15%' },
+  spd: { name: 'Buty', desc: 'Prędkość ruchu +10%' },
+  dash: { name: 'Skrzydła', desc: 'Dash odnawia się 25% szybciej' },
+  range: { name: 'Celownik', desc: 'Zasięg ataku +25%' },
+};
+export const UPGRADE_IDS = /** @type {const} */ (['vit', 'dmg', 'cd', 'spd', 'dash', 'range']);
+
+/** Poziomy trudności botów. */
+export const AI_LEVELS = {
+  easy: { name: 'Łatwy', aimErr: 1.6, dodge: 0.35, ability: 0.4, attack: 0.7, bossAbility: 0.5 },
+  normal: { name: 'Normalny', aimErr: 0.5, dodge: 0.8, ability: 1, attack: 1, bossAbility: 1 },
+  hard: { name: 'Trudny', aimErr: 0, dodge: 1, ability: 1.6, attack: 1, bossAbility: 1.5 },
+};

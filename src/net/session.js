@@ -11,6 +11,7 @@ import { createMatchState, cloneState } from '../sim/state.js';
 import { disconnectPlayer } from '../sim/rules.js';
 import { makeRng } from '../sim/rng.js';
 import { MATCH } from '../sim/config.js';
+import { pickMapId } from '../sim/maps.js';
 
 /**
  * @param {{transport: import('./transport.js').Transport, rooms: any, room:{id:string|null, code:string, ownerId:string|null},
@@ -95,7 +96,7 @@ export function createSession(o) {
     if (ready.length < MATCH.minPlayers) return;
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
     const order = [...ready].sort((a, b) => a.joinedAt - b.joinedAt);
-    const state = createMatchState({ seed, players: order.map((p) => ({ id: p.userId, nick: p.nick, skin: p.skin })), targetScore: o.targetScore });
+    const state = createMatchState({ seed, players: order.map((p) => ({ id: p.userId, nick: p.nick, skin: p.skin })), targetScore: o.targetScore, mapId: pickMapId(seed) });
     const matchId = `m${seed.toString(36)}`;
     match = { id: matchId, epoch: 1, hostId: self, players: order.map((p) => p.userId), startedAt: Date.now(), finalState: null };
     links.setEpoch(1);

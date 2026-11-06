@@ -27,7 +27,8 @@ export function nearestHero(state, x, y, maxD = Infinity, exclude = []) {
   let best = null;
   let bd = maxD;
   for (const h of state.players) {
-    if (h.boss || !h.alive || !h.connected || exclude.includes(h.id)) continue;
+    if (h.boss || !h.alive || !h.connected || h.ai || exclude.includes(h.id)) continue;
+    if (h.hidden && Math.hypot(h.x - x, h.y - y) > 2.5) continue;
     const d = Math.hypot(h.x - x, h.y - y);
     if (d <= bd) {
       bd = d;

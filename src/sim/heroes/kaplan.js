@@ -8,7 +8,7 @@ export const kaplan = {
   start(state, h) {
     for (const o of state.players) {
       if (o.boss || !o.alive) continue;
-      if (Math.hypot(o.x - h.x, o.y - h.y) <= A.radius + HERO.radius) o.hp = Math.min(HERO.hp, o.hp + A.heal);
+      if (Math.hypot(o.x - h.x, o.y - h.y) <= A.radius + HERO.radius) o.hp = Math.min(o.maxHp ?? HERO.hp, o.hp + A.heal);
     }
     h.abilCd = A.cd;
     state.events.push({ t: 'ability', id: h.id, skin: 'kaplan', x: h.x, y: h.y, r: A.radius });

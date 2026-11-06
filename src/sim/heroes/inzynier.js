@@ -41,7 +41,8 @@ export function updateTurrets(state, dt) {
     const d = Math.hypot(dx, dy);
     if (d > A.range + 1.2) continue;
     t.cd = A.fireEvery;
-    spawnProjectile(state, { team: 'hero', ownerId: t.ownerId, kind: 'turret', x: t.x, y: t.y, vx: (dx / d) * A.speed, vy: (dy / d) * A.speed, r: 0.12, range: A.range + 2, dmg: A.dmg });
+    const owner = state.players.find((p) => p.id === t.ownerId);
+    spawnProjectile(state, { team: 'hero', ownerId: t.ownerId, kind: 'turret', x: t.x, y: t.y, vx: (dx / d) * A.speed, vy: (dy / d) * A.speed, r: 0.12, range: A.range + 2, dmg: A.dmg * (owner?.mods?.dmg ?? 1) });
   }
   state.turrets = keep;
 }

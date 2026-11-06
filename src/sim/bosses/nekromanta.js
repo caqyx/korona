@@ -1,9 +1,9 @@
-import { BOSSES, HERO } from '../config.js';
+import { BOSSES } from '../config.js';
 import { addZone } from '../zones.js';
 import { bossRadius, hurtHero } from '../combat.js';
 import { nextId } from '../state.js';
 import { resolveStatic } from '../physics.js';
-import { aimAngle, lineMarker, bossShot, clampAim, nearestHero, RAD } from './helpers.js';
+import { aimAngle, lineMarker, bossShot, clampAim, nearestHero } from './helpers.js';
 
 const C = BOSSES.nekromanta;
 
@@ -86,34 +86,4 @@ export function makeMinion(state, ownerId, x, y, cfg, kind) {
   return { id: nextId(state), kind, ownerId, x, y, hp: cfg.hp, maxHp: cfg.hp, r: cfg.radius, cd: 0.6, windup: 0, fx: 1, fy: 0, speed: cfg.speed, atkRange: cfg.atkRange, atkTelegraph: cfg.atkTelegraph, atkCd: cfg.atkCd };
 }
 
-/** Miniony gonią najbliższego bohatera i atakują z telegrafem. @param {any} state @param {number} dt */
-export function updateMinions(state, dt) {
-  state.minions = state.minions.filter((m) => m.hp > 0);
-  for (const m of state.minions) {
-    m.cd -= dt;
-    if (m.windup > 0) {
-      m.windup -= dt;
-      continue;
-    }
-    const h = nearestHero(state, m.x, m.y);
-    if (!h) continue;
-    const dx = h.x - m.x;
-    const dy = h.y - m.y;
-    const d = Math.hypot(dx, dy) || 1;
-    m.fx = dx / d;
-    m.fy = dy / d;
-    const atkRange = m.atkRange ?? C.q.atkRange;
-    if (d <= atkRange + HERO.radius + m.r) {
-      if (m.cd <= 0) {
-        const tel = m.atkTelegraph ?? C.q.atkTelegraph;
-        addZone(state, { kind: 'minionMelee', shape: 'arc', ownerId: m.ownerId, x: m.x, y: m.y, r: atkRange + m.r + 0.3, ang: Math.atan2(dy, dx), arc: 100 * RAD, warn: tel, life: 0.06, dmg: 1 });
-        m.windup = tel;
-        m.cd = m.atkCd ?? C.q.atkCd;
-      }
-    } else {
-      m.x += m.fx * (m.speed ?? C.q.speed) * dt;
-      m.y += m.fy * (m.speed ?? C.q.speed) * dt;
-      resolveStatic(m, m.r);
-    }
-  }
-}
+export { updateMinions } from '../minions.js';

@@ -31,7 +31,7 @@ export const kolos = {
   /** Deszcz głazów: 4 strefy w miejscach bohaterów. */
   r: {
     telegraph: (state, p, cast, rng) => {
-      const spots = state.players.filter((h) => !h.boss && h.alive && h.connected).map((h) => [h.x, h.y]);
+      const spots = state.players.filter((h) => !h.boss && h.alive && h.connected && !h.hidden && !h.ai).map((h) => [h.x, h.y]);
       while (spots.length < C.r.count) spots.push(randomArenaPoint(rng, 1));
       for (const [x, y] of spots.slice(0, C.r.count)) {
         addZone(state, { kind: 'boulder', shape: 'circle', ownerId: p.id, x, y, r: C.r.radius * cast.area, warn: C.r.telegraph, life: 0.08, dmg: 1 });

@@ -4,6 +4,7 @@
  * Użycie: npm run balance [-- --matches 200 --seed 1]
  */
 import { createMatchState, step, botInput, makeRng, SKIN_IDS, BOSS_IDS, DT } from '../src/sim/index.js';
+import { MAP_IDS } from '../src/sim/maps.js';
 
 const args = process.argv.slice(2);
 const arg = (name, def) => {
@@ -17,7 +18,8 @@ export function runMatch(seed) {
   const meta = makeRng({ s: seed * 7919 + 13 });
   const n = 3 + meta.int(4); // 3..6 graczy
   const players = Array.from({ length: n }, (_, i) => ({ id: `p${i}`, nick: `bot${i}`, skin: SKIN_IDS[meta.int(SKIN_IDS.length)] }));
-  const state = createMatchState({ seed, players, countdown: 0 });
+  const mapId = MAP_IDS[meta.int(MAP_IDS.length)];
+  const state = createMatchState({ seed, players, countdown: 0, mapId });
   const rngs = Object.fromEntries(players.map((p, i) => [p.id, makeRng({ s: seed * 31 + i + 1 })]));
   const reign = Object.fromEntries(BOSS_IDS.map((b) => [b, { time: 0, count: 0 }]));
   const lastHitsBySkin = Object.fromEntries(SKIN_IDS.map((s) => [s, 0]));
@@ -36,16 +38,18 @@ export function runMatch(seed) {
       if (e.t === 'lastHit') lastHitsBySkin[state.players.find((p) => p.id === e.id).skin]++;
     }
   }
-  return { minutes: state.matchTime / 60, reign, lastHitsBySkin, skinPresence, endReason: state.endReason, players: n };
+  return { minutes: state.matchTime / 60, reign, lastHitsBySkin, skinPresence, endReason: state.endReason, players: n, mapId };
 }
 
 function main() {
   const t0 = Date.now();
   const total = { minutes: 0, reign: Object.fromEntries(BOSS_IDS.map((b) => [b, { time: 0, count: 0 }])), lh: Object.fromEntries(SKIN_IDS.map((s) => [s, 0])), pres: Object.fromEntries(SKIN_IDS.map((s) => [s, 0])), reasons: {} };
   const mins = [];
+  const byMap = {};
   for (let i = 0; i < MATCHES; i++) {
     const r = runMatch(SEED * 100000 + i);
     mins.push(r.minutes);
+    (byMap[r.mapId] ??= []).push(r.minutes);
     total.minutes += r.minutes;
     total.reasons[r.endReason] = (total.reasons[r.endReason] || 0) + 1;
     for (const b of BOSS_IDS) {
@@ -62,6 +66,8 @@ function main() {
   console.log(`KORONA balans: ${MATCHES} meczów (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   console.log(`Średni czas meczu: ${avg.toFixed(2)} min (mediana ${mins[Math.floor(MATCHES / 2)].toFixed(2)}, min ${mins[0].toFixed(2)}, max ${mins[MATCHES - 1].toFixed(2)})`);
   console.log(`Zakończenia: ${JSON.stringify(total.reasons)}`);
+  console.log('Średni czas meczu per mapa:');
+  for (const [m, xs] of Object.entries(byMap)) console.log(`  ${m.padEnd(11)} ${(xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(2)} min  (${xs.length} meczów)`);
   console.log('Średni czas w koronie per boss (na panowanie):');
   for (const b of BOSS_IDS) {
     const r = total.reign[b];

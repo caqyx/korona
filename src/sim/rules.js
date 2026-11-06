@@ -1,6 +1,7 @@
 import { SCORE, MATCH, HERO, BOSS_COMMON, BOSSES, BOSS_IDS, RARITY, CASE } from './config.js';
 import { spawnPoint } from './state.js';
 import { resolveStatic } from './physics.js';
+import { onModeBossKilled, onModeHeroKilled, scaleModeBoss } from './modes.js';
 
 /** @typedef {import('./state.js').MatchState} MatchState */
 /** @typedef {import('./state.js').Player} Player */
@@ -37,7 +38,7 @@ export function drawBossType(rng, lastType) {
 
 /** HP bossa = 120 × liczba bohaterów × mnożnik typu. @param {MatchState} state @param {string} bossId @param {string} type */
 export function bossMaxHp(state, bossId, type) {
-  const heroes = state.players.filter((p) => p.id !== bossId && p.connected && !p.dnf).length;
+  const heroes = state.players.filter((p) => p.id !== bossId && p.connected && !p.dnf && !p.ai).length;
   return Math.round(BOSS_COMMON.hpPerHero * Math.max(1, heroes) * BOSSES[/** @type {keyof typeof BOSSES} */ (type)].hpMul);
 }
 
@@ -68,6 +69,7 @@ export function finishTransition(state, rng) {
     return;
   }
   promoteToBoss(state, nb, tr.bossType);
+  if (nb.ai) scaleModeBoss(state, nb);
   state.lastBossType = tr.bossType;
   for (const p of state.players) p.dmgToBoss = 0;
   state.phase = 'playing';
@@ -109,12 +111,14 @@ export function demoteToHero(state, p, rng) {
 
 /** @param {MatchState} state @param {Player} p @param {Rng} rng @param {number} invuln */
 export function respawnHero(state, p, rng, invuln) {
-  const [x, y] = spawnPoint(rng.int(MATCH.spawnCount));
+  const [x, y] = spawnPoint(rng.int(MATCH.spawnCount), state.mapId);
   p.x = x;
   p.y = y;
-  p.hp = HERO.hp;
+  p.hp = p.maxHp ?? HERO.hp;
   p.alive = true;
   p.respawnT = 0;
+  p.vx = 0;
+  p.vy = 0;
   p.invulnT = invuln;
   p.kx = p.ky = 0;
   p.stunT = 0;
@@ -127,6 +131,7 @@ export function respawnHero(state, p, rng, invuln) {
 
 /** Ostatni cios w bossa. @param {MatchState} state @param {Player} bossP @param {string} killerId */
 export function onBossKilled(state, bossP, killerId) {
+  if (state.mode && state.mode !== 'crown') return onModeBossKilled(state, bossP, killerId);
   const b = /** @type {import('./state.js').BossState} */ (bossP.boss);
   b.dying = true;
   b.cast = null;
@@ -172,6 +177,7 @@ export function onHeroKilled(state, h, sourceId) {
   h.alive = false;
   h.hp = 0;
   h.respawnT = HERO.respawnTime;
+  if (state.mode && state.mode !== 'crown') onModeHeroKilled(state, h);
   h.deaths += 1;
   h.abilT = 0;
   h.dashT = 0;
@@ -196,6 +202,7 @@ export function dropCrown(state) {
 
 /** Podniesienie korony ze środka (bez bonusu). @param {MatchState} state @param {Rng} rng */
 export function checkCrownPickup(state, rng) {
+  if (state.mode && state.mode !== 'crown') return;
   if (state.crown.state !== 'center' || state.phase !== 'playing') return;
   for (const p of state.players) {
     if (!p.alive || p.boss || !p.connected) continue;
@@ -208,6 +215,7 @@ export function checkCrownPickup(state, rng) {
 
 /** +1 pkt za każdą sekundę w koronie. @param {MatchState} state @param {number} dt */
 export function accrueCrownTime(state, dt) {
+  if (state.mode && state.mode !== 'crown') return;
   for (const p of state.players) {
     if (!p.boss || p.boss.dying) continue;
     p.boss.reign += dt;
@@ -222,7 +230,7 @@ export function accrueCrownTime(state, dt) {
 
 /** Lider: najwięcej punktów, potem czas w koronie, potem id. @param {MatchState} state */
 export function leader(state) {
-  const eligible = state.players.filter((p) => !p.dnf);
+  const eligible = state.players.filter((p) => !p.dnf && !p.ai);
   const list = eligible.length ? eligible : state.players;
   return [...list].sort((a, b) => b.score - a.score || b.crownTime - a.crownTime || (a.id < b.id ? -1 : 1))[0] || null;
 }
@@ -230,6 +238,7 @@ export function leader(state) {
 /** @param {MatchState} state */
 export function checkWin(state) {
   if (state.phase === 'ended') return;
+  if (state.mode && state.mode !== 'crown') return;
   const winner = state.players.find((p) => !p.dnf && p.score >= state.targetScore);
   if (winner) return endMatch(state, winner.id, 'score');
   if (state.matchTime >= state.timeLimit) return endMatch(state, leader(state)?.id ?? null, 'time');
