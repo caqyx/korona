@@ -5,6 +5,9 @@ Projekt Supabase **`korona`** (ref `stnsislxdqqewbaichur`, region eu-central-1) 
 ## 0. Zastosuj migrację `20261105000003_harden_room_timestamps.sql`
 Migracje 0001 i 0002 są już na projekcie. Trzecia (serwer ustawia `created_at/updated_at` w `rooms`, żeby pokoje nie omijały sprzątania) **nie została zastosowana** — narzędzie Supabase poprosiło o potwierdzenie (zawiera `drop trigger`), a w sesji nikt nie odpowiedział. Uruchom jej treść w Dashboard → SQL Editor albo `npx supabase db push`.
 
+## 0b. Zastosuj migrację `20261106000004_new_skins.sql`
+Dodaje nowe klasy (mag, barbarzynca, druid) do ograniczeń `profiles.favorite_skin` i `match_results.skin`. Bez niej zapis wyniku meczu online z nową klasą zostanie odrzucony (gra działa, tylko wynik się nie zapisze). Uruchom treść w SQL Editor.
+
 ## 1. Włącz anonimowe logowanie (wymagane dla trybu online przez Supabase)
 Nie da się tego zrobić przez SQL ani narzędzia, którymi dysponowała sesja.
 1. Otwórz https://supabase.com/dashboard/project/stnsislxdqqewbaichur/auth/providers

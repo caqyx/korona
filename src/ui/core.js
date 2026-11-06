@@ -25,7 +25,13 @@ export function createCore() {
   const gameView = createGameView(canvas, 'local');
   gameView.start();
   let touchDevice = /** @type {any} */ (null);
-  const getTouch = () => (touchDevice ??= createTouch(touchRoot));
+  const getTouch = () => {
+    if (!touchDevice) {
+      touchDevice = createTouch(touchRoot);
+      gameView.aimSource = (me) => touchDevice.aimPreview(me);
+    }
+    return touchDevice;
+  };
 
   const nickInput = /** @type {HTMLInputElement} */ ($('#nick'));
   unlockAudio();

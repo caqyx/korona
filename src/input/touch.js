@@ -1,6 +1,5 @@
 import { BTN } from '../sim/state.js';
 import { SKINS, BOSSES, HERO } from '../sim/config.js';
-import { autoAim } from './aim.js';
 import { iconCanvas, mount } from '../ui/previews.js';
 
 /** @type {Promise<any>|null} */
@@ -37,7 +36,8 @@ export function createTouch(root) {
   const base = /** @type {HTMLElement} */ (root.querySelector('.tj-base'));
   const knob = /** @type {HTMLElement} */ (root.querySelector('.tj-knob'));
   const hint = /** @type {HTMLElement} */ (root.querySelector('.tj-hint'));
-  const st = { mx: 0, my: 0, held: 0, pressed: 0, aimDX: 0, aimDY: 0, aiming: false, joyId: -1, ox: 0, oy: 0, jr: 50 };
+  /** @type {any} */
+  const st = { mx: 0, my: 0, held: 0, pressed: 0, joyId: -1, ox: 0, oy: 0, jr: 50, touchedAim: false };
   const bits = { attack: BTN.ATTACK, dash: BTN.DASH, ability: BTN.ABILITY, q: BTN.Q, e: BTN.E, r: BTN.R };
 
   /** @type {Record<string, {el:HTMLElement, sweep:HTMLElement, cdn:HTMLElement, ico:HTMLElement, icon:string, frac:number, txt:string}>} */
@@ -117,38 +117,58 @@ export function createTouch(root) {
   zone.addEventListener('pointerup', endJoy);
   zone.addEventListener('pointercancel', endJoy);
 
+  // --- celowanie przeciąganiem (bez auto-aim) ---------------------------------
+  // ATAK: tap = atak w ostatnim kierunku; przytrzymaj i przeciągnij = celowanie + seria.
+  // UMIEJĘTNOŚĆ / Q / E / R: przytrzymaj i przeciągnij, puść = rzut. Długość przeciągnięcia = odległość celu.
+  const DRAG_DEAD = 14;
+  const DRAG_MAX = 90;
+  const AIM_RANGE = 9;
+  const aimBits = BTN.ABILITY | BTN.Q | BTN.E | BTN.R;
+  st.dir = { x: 1, y: 0 };
+  st.dist = 6;
+  st.drag = null;
   for (const el of root.querySelectorAll('.tb')) {
     const b = /** @type {HTMLElement} */ (el);
     const bit = bits[/** @type {keyof typeof bits} */ (b.dataset.b)];
     let sx = 0;
     let sy = 0;
+    const aimable = bit === BTN.ATTACK || (bit & aimBits) !== 0;
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      st.held |= bit;
-      st.pressed |= bit;
       sx = e.clientX;
       sy = e.clientY;
       b.classList.add('pressed');
       b.setPointerCapture(e.pointerId);
       haptic(b.classList.contains('ready') ? 12 : 4);
-    });
-    b.addEventListener('pointermove', (e) => {
-      if (!(st.held & bit) || bit !== BTN.ATTACK) return;
-      const dx = e.clientX - sx;
-      const dy = e.clientY - sy;
-      if (Math.hypot(dx, dy) > 12) {
-        st.aiming = true;
-        st.aimDX = dx;
-        st.aimDY = dy;
+      if (bit & aimBits) st.drag = { bit, dx: 0, dy: 0, k: 0 }; // rzut dopiero po puszczeniu
+      else {
+        st.held |= bit;
+        st.pressed |= bit;
+        if (bit === BTN.ATTACK) st.drag = { bit, dx: 0, dy: 0, k: 0 };
       }
     });
-    const up = () => {
-      st.held &= ~bit;
+    b.addEventListener('pointermove', (e) => {
+      if (!aimable || !st.drag || st.drag.bit !== bit) return;
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      const l = Math.hypot(dx, dy);
+      if (l > DRAG_DEAD) {
+        st.drag.dx = dx;
+        st.drag.dy = dy;
+        st.drag.k = Math.min(1, l / DRAG_MAX);
+        st.dir = { x: dx / l, y: dy / l };
+        st.dist = Math.max(1.5, st.drag.k * AIM_RANGE);
+        st.touchedAim = true;
+      }
+    });
+    const up = (cancel) => {
       b.classList.remove('pressed');
-      if (bit === BTN.ATTACK) st.aiming = false;
+      if (bit & aimBits && st.drag?.bit === bit && !cancel) st.pressed |= bit;
+      st.held &= ~bit;
+      if (st.drag?.bit === bit) st.drag = null;
     };
-    b.addEventListener('pointerup', up);
-    b.addEventListener('pointercancel', up);
+    b.addEventListener('pointerup', () => up(false));
+    b.addEventListener('pointercancel', () => up(true));
     b.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
@@ -182,16 +202,18 @@ export function createTouch(root) {
     setBoss(isBoss) {
       if (root.classList.contains('is-boss') !== isBoss) root.classList.toggle('is-boss', isBoss);
     },
-    read(state, me) {
+    /** Podgląd celowania dla renderera (świat): null gdy nie celujesz. @param {any} me */
+    aimPreview(me) {
+      if (!me || !st.drag || !(st.drag.dx || st.drag.dy)) return null;
+      return { x: me.x + st.dir.x * st.dist, y: me.y + st.dir.y * st.dist, ability: st.drag.bit !== BTN.ATTACK };
+    },
+    read(_state, me) {
       const buttons = st.held | st.pressed;
       st.pressed = 0;
-      let ax;
-      let ay;
-      if (st.aiming && me) {
-        const l = Math.hypot(st.aimDX, st.aimDY) || 1;
-        ax = me.x + (st.aimDX / l) * 6;
-        ay = me.y + (st.aimDY / l) * 6;
-      } else [ax, ay] = autoAim(state, me);
+      // ręczne celowanie: ostatni przeciągnięty kierunek (zanim gracz wyceluje — kierunek patrzenia)
+      if (me && !st.touchedAim && (me.fx || me.fy)) st.dir = { x: me.fx, y: me.fy };
+      const ax = (me?.x ?? 0) + st.dir.x * st.dist;
+      const ay = (me?.y ?? 0) + st.dir.y * st.dist;
       if (me) {
         this.setBoss(!!me.boss);
         updateButtons(me);

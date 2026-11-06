@@ -51,10 +51,10 @@ Realtime (Presence i Broadcast) nie wymaga dodatkowej konfiguracji — używane 
 | Akcja | Klawiatura + mysz | Klawiatura 2 (lokalnie) | Gamepad | Dotyk |
 |---|---|---|---|---|
 | Ruch | WASD | IJKL | lewa gałka | wirtualny joystick (lewa strona) |
-| Celowanie | mysz | auto-aim | prawa gałka (bez — auto-aim) | auto-aim, przeciągnij ATAK |
+| Celowanie | mysz | auto-aim | prawa gałka (bez — auto-aim) | przeciągnij przycisk ATAK / umiejętności (ręcznie, bez auto-aim) |
 | Atak | LPM | U | RT | ATAK |
 | Dash | Spacja | P | A | DASH |
-| Umiejętność bohatera | PPM lub F | O | RB | UMIEJ. |
+| Umiejętność bohatera | PPM lub F | O | RB | przytrzymaj UMIEJ., przeciągnij, puść |
 | Umiejętności bossa | Q / E / R | 7 / 8 / 9 | X / Y / B | Q / E / R (po przejęciu korony) |
 | Pauza (lokalnie) | Esc | | | |
 

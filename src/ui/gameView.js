@@ -63,10 +63,12 @@ export function createGameView(canvas, mode) {
     updateCamera(cam, w, h, me && me.alive ? me : null, dt, lastFrame.view.mapId);
     const v = lastFrame.view;
     setMusic(v.phase === 'ended' ? 'victory' : v.phase === 'transition' ? 'case' : me?.boss ? 'boss' : 'hero');
-    renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play, touch: touchVisible() });
+    renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play, touch: touchVisible(), aim: touchVisible() && me ? api.aimSource?.(me) : null });
   }
 
-  return {
+  const api = {
+    /** @type {((me:any)=>any)|null} podgląd celowania (dotyk) */
+    aimSource: null,
     cam,
     fx,
     /** @param {FrameSource|null} s */
@@ -84,4 +86,5 @@ export function createGameView(canvas, mode) {
       last = 0;
     },
   };
+  return api;
 }

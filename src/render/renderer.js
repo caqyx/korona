@@ -90,6 +90,7 @@ export function createRenderer(canvas) {
       drawProjectiles(g, cam, view, o.time, trails);
       drawBushes(g, cam, map, o.time);
       drawFxWorld(g, cam, fx);
+      if (o.aim) drawAimPreview(g, cam, view, o);
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
@@ -550,4 +551,25 @@ function drawHeroZone(g, cam, z, time, view) {
   }
   g.fillStyle = c;
   strokeCircle(g, x, y, r);
+}
+
+/** Podgląd celowania przeciąganiem (dotyk): linia z kropek i znacznik celu. */
+function drawAimPreview(g, cam, view, o) {
+  const me = view.players.find((p) => p.id === o.meIds[0]);
+  if (!me || !me.alive) return;
+  const [x0, y0] = worldToArt(cam, me.x, me.y);
+  const [x1, y1] = worldToArt(cam, o.aim.x, o.aim.y);
+  const c = slotColor(me.slot);
+  g.fillStyle = c;
+  line(g, x0, y0 - 4, x1, y1 - 4, 3);
+  if (o.aim.ability) {
+    g.fillStyle = dither(g, c, 0.3);
+    fillCircle(g, x1, y1, 6);
+    g.fillStyle = '#ffffff';
+    strokeCircle(g, x1, y1, 6);
+  } else {
+    g.fillStyle = '#ffffff';
+    g.fillRect(x1 - 2, y1 - 4, 5, 1);
+    g.fillRect(x1, y1 - 6, 1, 5);
+  }
 }
