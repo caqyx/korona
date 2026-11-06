@@ -83,7 +83,7 @@ export function createRenderer(canvas) {
       g.drawImage(arena.img, ox - arena.cx, oy - arena.cy);
       drawHazardsAnimated(g, map, (x, y) => worldToArt(cam, x, y), o.time);
 
-      drawZones(g, cam, view.zones, o.time);
+      drawZones(g, cam, view.zones, o.time, view);
       drawRings(g, cam, fx);
       drawCrownCenter(g, cam, view, o.time);
       drawEntities(g, cam, view, o, { moving, fx, map });
@@ -112,8 +112,12 @@ function drawStars(g, cam, time) {
 }
 
 /** Telegrafy: ditherowane wypełnienie rośnie z postępem, obrys miga szybciej pod koniec. */
-function drawZones(g, cam, zones, time) {
+function drawZones(g, cam, zones, time, view) {
   for (const z of zones) {
+    if (z.team === 'hero') {
+      drawHeroZone(g, cam, z, time, view);
+      continue;
+    }
     const [x, y] = worldToArt(cam, z.x, z.y);
     const telegraph = z.warn > 0;
     const p = telegraph && z.warnTotal > 0 ? 1 - z.warn / z.warnTotal : 1;
@@ -521,4 +525,29 @@ function drawBushes(g, cam, map, time) {
     const [x, y] = worldToArt(cam, z.x, z.y);
     drawSprite(g, getBushSprite(z.r ?? 1.5, Math.floor(time * 2)), x, y);
   }
+}
+
+/** Strefy umiejętności bohaterów (Meteor, Korzenie) — w kolorze gracza, nie czerwone. */
+function drawHeroZone(g, cam, z, time, view) {
+  const owner = view.players.find((p) => p.id === z.ownerId);
+  const c = owner ? slotColor(owner.slot) : '#9be7ff';
+  const [x, y] = worldToArt(cam, z.x, z.y);
+  const r = z.r * PPM;
+  const telegraph = z.warn > 0;
+  const p = telegraph && z.warnTotal > 0 ? 1 - z.warn / z.warnTotal : 1;
+  if (z.kind === 'roots' && !telegraph) {
+    g.fillStyle = dither(g, '#3f8f3a', 0.45 + Math.sin(time * 5) * 0.08);
+    fillCircle(g, x, y, r);
+    g.fillStyle = '#6fe07a';
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + time * 0.6;
+      const rr = r * (0.3 + ((i * 37) % 10) / 14);
+      g.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y + Math.sin(a) * rr), 1, 2);
+    }
+  } else {
+    g.fillStyle = dither(g, c, telegraph ? 0.15 + p * 0.35 : 0.8);
+    fillCircle(g, x, y, telegraph ? r * p : r);
+  }
+  g.fillStyle = c;
+  strokeCircle(g, x, y, r);
 }

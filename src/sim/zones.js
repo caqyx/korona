@@ -1,7 +1,7 @@
 import { distToSegment, angleDiff } from './vec.js';
 import { HERO } from './config.js';
 import { nextId } from './state.js';
-import { hurtHero } from './combat.js';
+import { hurtHero, hurtBoss, damageMinion, bossRadius } from './combat.js';
 
 /**
  * Strefa z telegrafem. Najpierw `warn` sekund ostrzeżenia (czerwony kształt, brak efektu),
@@ -131,6 +131,7 @@ function applyZone(state, z, dt) {
       tickNow = true;
     }
   }
+  if (z.team === 'hero') return applyHeroZone(state, z, tickNow);
   for (const h of state.players) {
     if (h.boss || !h.alive) continue;
     if (!zoneContains(z, h.x, h.y, HERO.radius)) continue;
@@ -167,4 +168,28 @@ function applyKnock(h, z) {
     h.ky += (dy / d) * z.knock;
   }
   if (z.stun > 0) h.stunT = Math.max(h.stunT, z.stun);
+}
+
+/** Strefa umiejętności bohatera (Meteor, Korzenie): rani bossa i miniony, spowalnia bossa. */
+function applyHeroZone(state, z, tickNow) {
+  const once = z.tick <= 0;
+  const bossP = state.players.find((p) => p.boss && !p.boss.dying);
+  if (bossP && zoneContains(z, bossP.x, bossP.y, bossRadius())) {
+    if (z.slow > 0) {
+      bossP.slowT = Math.max(bossP.slowT, 0.2);
+      bossP.slowMul = 1 - z.slow;
+    }
+    if (z.dmg > 0 && (once ? !z.hit.includes(bossP.id) : tickNow)) {
+      if (once) z.hit.push(bossP.id);
+      hurtBoss(state, bossP, z.dmg, z.ownerId || '');
+    }
+  }
+  for (const m of state.minions) {
+    if (m.hp <= 0 || !zoneContains(z, m.x, m.y, m.r)) continue;
+    if (z.slow > 0) m.rootT = 0.2;
+    if (z.dmg > 0 && (once ? !z.hit.includes(m.id) : tickNow)) {
+      if (once) z.hit.push(m.id);
+      damageMinion(state, m, z.dmg, z.ownerId);
+    }
+  }
 }

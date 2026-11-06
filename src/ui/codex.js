@@ -45,6 +45,27 @@ export const SKIN_TEXT = {
     abilityDesc: `Działko na ${S.inzynier.ability.life} s, strzela w bossa po ${S.inzynier.ability.dmg} dmg. Jego ostatni cios jest Twój.`,
     cd: S.inzynier.ability.cd,
   },
+  mag: {
+    role: 'Wybuchowe obrażenia',
+    attack: `Kula ognia, ${S.mag.attack.range} m, ${S.mag.attack.dmg} dmg`,
+    ability: 'Meteor',
+    abilityDesc: `Po ${num(S.mag.ability.telegraph)} s spada w wybrany punkt (do ${S.mag.ability.range} m): ${S.mag.ability.dmg} dmg w promieniu ${num(S.mag.ability.radius)} m.`,
+    cd: S.mag.ability.cd,
+  },
+  barbarzynca: {
+    role: 'Obrażenia wręcz',
+    attack: `Topór 150°, ${S.barbarzynca.attack.dmg} dmg`,
+    ability: 'Szał',
+    abilityDesc: `Przez ${S.barbarzynca.ability.duration} s ataki ponad 2× szybciej i +20% prędkości ruchu.`,
+    cd: S.barbarzynca.ability.cd,
+  },
+  druid: {
+    role: 'Kontrola',
+    attack: `Ciernie, ${S.druid.attack.range} m, ${S.druid.attack.dmg} dmg`,
+    ability: 'Korzenie',
+    abilityDesc: `Strefa ${num(S.druid.ability.radius)} m na ${S.druid.ability.life} s: spowalnia bossa o ${Math.round(S.druid.ability.slow * 100)}%, unieruchamia miniony, ${S.druid.ability.dmg} dmg co ${num(S.druid.ability.tick)} s.`,
+    cd: S.druid.ability.cd,
+  },
 };
 
 export const HERO_COMMON = `Każdy bohater: ${HERO.hp} HP, dash co ${num(HERO.dashCooldown)} s (${num(HERO.dashDuration)} s nietykalności), odrodzenie po ${HERO.respawnTime} s.`;

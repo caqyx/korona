@@ -24,6 +24,9 @@ export function runMatch(seed) {
   const reign = Object.fromEntries(BOSS_IDS.map((b) => [b, { time: 0, count: 0 }]));
   const lastHitsBySkin = Object.fromEntries(SKIN_IDS.map((s) => [s, 0]));
   const skinPresence = Object.fromEntries(SKIN_IDS.map((s) => [s, 0]));
+  const dmgBySkin = Object.fromEntries(SKIN_IDS.map((s) => [s, 0]));
+  const deathsBySkin = Object.fromEntries(SKIN_IDS.map((s) => [s, 0]));
+  const scoreBySkin = Object.fromEntries(SKIN_IDS.map((s) => [s, 0]));
   for (const p of players) skinPresence[p.skin]++;
   let steps = 0;
   while (state.phase !== 'ended' && steps < 60 * 60 * 12) {
@@ -36,13 +39,20 @@ export function runMatch(seed) {
     for (const e of state.events) {
       if (e.t === 'crownTaken') reign[e.bossType].count++;
       if (e.t === 'lastHit') lastHitsBySkin[state.players.find((p) => p.id === e.id).skin]++;
+      if (e.t === 'bossHit') {
+        const a = state.players.find((p) => p.id === e.by);
+        if (a) dmgBySkin[a.skin] += e.dmg;
+      }
+      if (e.t === 'heroDie') deathsBySkin[state.players.find((p) => p.id === e.id).skin]++;
     }
   }
-  return { minutes: state.matchTime / 60, reign, lastHitsBySkin, skinPresence, endReason: state.endReason, players: n, mapId };
+  for (const p of state.players) scoreBySkin[p.skin] += p.score;
+  return { minutes: state.matchTime / 60, reign, lastHitsBySkin, skinPresence, dmgBySkin, deathsBySkin, scoreBySkin, endReason: state.endReason, players: n, mapId };
 }
 
 function main() {
   const t0 = Date.now();
+  const per = { dmg: {}, deaths: {}, score: {}, pm: {} };
   const total = { minutes: 0, reign: Object.fromEntries(BOSS_IDS.map((b) => [b, { time: 0, count: 0 }])), lh: Object.fromEntries(SKIN_IDS.map((s) => [s, 0])), pres: Object.fromEntries(SKIN_IDS.map((s) => [s, 0])), reasons: {} };
   const mins = [];
   const byMap = {};
@@ -59,6 +69,10 @@ function main() {
     for (const s of SKIN_IDS) {
       total.lh[s] += r.lastHitsBySkin[s];
       total.pres[s] += r.skinPresence[s];
+      per.dmg[s] = (per.dmg[s] || 0) + r.dmgBySkin[s];
+      per.deaths[s] = (per.deaths[s] || 0) + r.deathsBySkin[s];
+      per.score[s] = (per.score[s] || 0) + r.scoreBySkin[s];
+      per.pm[s] = (per.pm[s] || 0) + r.skinPresence[s] * r.minutes;
     }
   }
   const avg = total.minutes / MATCHES;
@@ -80,6 +94,11 @@ function main() {
     const share = total.lh[s] / lhTotal;
     worst = Math.max(worst, share);
     console.log(`  ${s.padEnd(9)} ${String(total.lh[s]).padStart(5)}  ${(share * 100).toFixed(1)}%  (${(total.lh[s] / Math.max(1, total.pres[s])).toFixed(2)}/gracza)`);
+  }
+  console.log('Klasy (na gracza-minutę: obrażenia w bossa, śmierci; średnie pkt na mecz):');
+  for (const s of SKIN_IDS) {
+    const pm = per.pm[s] || 1;
+    console.log(`  ${s.padEnd(12)} dmg/min ${(per.dmg[s] / pm).toFixed(1).padStart(6)}  śmierci/min ${(per.deaths[s] / pm).toFixed(2)}  pkt/mecz ${(per.score[s] / Math.max(1, total.pres[s])).toFixed(1)}`);
   }
   const okTime = avg >= 4 && avg <= 10;
   const okShare = worst <= 0.35;

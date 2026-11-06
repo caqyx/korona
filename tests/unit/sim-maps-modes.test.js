@@ -5,7 +5,7 @@ import { botInput } from '../../src/sim/bot.js';
 import { makeRng } from '../../src/sim/rng.js';
 import { MAPS, MAP_IDS, getMap, inHazard, pickMapId, HAZARD } from '../../src/sim/maps.js';
 import { mapSpawnPoint, bindMap, resolveStatic, outsideArena } from '../../src/sim/physics.js';
-import { MINIONS, MODES, UPGRADE_IDS, HERO } from '../../src/sim/config.js';
+import { MINIONS, MODES, UPGRADE_IDS, HERO, BOSS_COMMON, BOSSES } from '../../src/sim/config.js';
 import { buildWave, applyUpgradeEffect } from '../../src/sim/modes.js';
 import { BTN } from '../../src/sim/state.js';
 
@@ -154,8 +154,7 @@ describe('tryby', () => {
     for (let i = 0; i < 60 * 6; i++) step(st, {});
     const ai = st.players.find((p) => p.ai);
     expect(ai.boss).toBeTruthy();
-    const hp1 = ai.boss.maxHp / (ai.boss.maxHp / 120); // baza dla 1 bohatera
-    expect(hp1).toBe(120);
+    expect(ai.boss.maxHp).toBe(Math.round(BOSS_COMMON.hpPerHero * BOSSES[ai.boss.type].hpMul));
     // zabij bossa i przejdź do następnego
     const first = ai.boss.type;
     const firstMax = ai.boss.maxHp;

@@ -22,7 +22,7 @@ const LEATHER = { L: '#c0814a', l: '#8a5430', b: '#5b3420' };
 
 /**
  * Definicje bohaterów. Znaki wspólne: k obrys, A/a/q akcent (jasny/bazowy/ciemny), f/F skóra.
- * @type {Record<string, {body: string[], pal: Record<string,string>, legs: {p: string, P: string, boot: string}, hand: [number, number], back: [number, number]}>}
+ * @type {Record<string, {body: string[], pal: Record<string,string>, legs: {p: string, P: string, boot: string}, robe?: {main: string, dark: string, stripe: string}, hand: [number, number], back: [number, number]}>}
  */
 export const HEROES = {
   rycerz: {
@@ -124,6 +124,68 @@ export const HEROES = {
     legs: { p: '#4b6a8f', P: '#344a66', boot: '#3b2418' },
     hand: [15, 12],
     back: [5, 12],
+  },
+  mag: {
+    body: [
+      '...HH.......',
+      '...hHH......',
+      '..hhHyh.....',
+      '..hyhHhh....',
+      '.jhhhhhhhhj.',
+      '..jfffffF...',
+      '..jfkffkf...',
+      '...WWWWWW...',
+      '..rqaWWaqr..',
+      '.rRrWWWWrRr.',
+      '.rRyAAAAyRr.',
+      '.rRrryrrrRr.',
+    ],
+    pal: { H: '#6b74e8', h: '#3d43a8', j: '#252a70', r: '#3d43a8', R: '#252a70', W: '#eef0fa', y: '#ffd54a', ...GOLD },
+    legs: { p: '#3d43a8', P: '#252a70', boot: '#2a1d3a' },
+    robe: { main: '#3d43a8', dark: '#252a70', stripe: 'y' },
+    hand: [15, 12],
+    back: [4, 12],
+  },
+  barbarzynca: {
+    body: [
+      '.O........O.',
+      '.oO......Oo.',
+      '..oOsSSsOo..',
+      '...sSWSSsd..',
+      '...sSSSSsd..',
+      '...ffkffkf..',
+      '...nfffffn..',
+      '.UUunnnnuUU.',
+      'fFUufFFfuUFf',
+      'aF.fffFFf.Fa',
+      'fF.qaAAaq.Ff',
+      '...uqaAqu...',
+    ],
+    pal: { O: '#f2ead0', o: '#b8a882', n: '#c0502a', U: '#a88a6a', u: '#6e5640', ...STEEL, ...GOLD },
+    legs: { p: '#6e5640', P: '#4a3a2a', boot: '#3b2418' },
+    hand: [15, 12],
+    back: [4, 12],
+  },
+  druid: {
+    body: [
+      '.b.b...b.b..',
+      '..bb...bb...',
+      '...bgGgb....',
+      '..ggGGGgg...',
+      '.dgGgGgggg..',
+      '.dggfffff...',
+      '.dgfkffkf...',
+      '..dgffffF...',
+      '..tTqaaqtt..',
+      '.gtTqAAqtTg.',
+      '.gtaAAAAatg.',
+      '..tTtgTtts..',
+    ],
+    pal: { b: '#e0cfa4', g: '#4a9a3e', G: '#8fd45e', d: '#285a2e', t: '#7a4e2c', T: '#a8703e', s: '#4e3020' },
+    legs: { p: '#7a4e2c', P: '#4e3020', boot: '#3b2418' },
+    robe: { main: '#7a4e2c', dark: '#4e3020', stripe: 'g' },
+    hand: [15, 12],
+    back: [4, 12],
   },
 };
 
@@ -247,6 +309,47 @@ function staff(b, hx, hy, tilt, glow) {
   b.set(topX + 2, hy - 9, GOLD.g);
 }
 
+/** Dwuręczny topór: drzewce + szerokie ostrze rozszerzające się ku krawędzi. */
+function axe(b, hx, hy, ang) {
+  const ca = Math.cos(ang);
+  const sa = Math.sin(ang);
+  for (let i = -2; i <= 6; i++) b.set(Math.round(hx + ca * i), Math.round(hy + sa * i), i < 0 ? LEATHER.b : LEATHER.L);
+  const px = -sa;
+  const py = ca;
+  const ex = hx + ca * 5;
+  const ey = hy + sa * 5;
+  // ostrze po jednej stronie drzewca (w stronę ruchu = +p)
+  for (let k = 0; k <= 3; k++) {
+    for (let t = -1 - (k > 1 ? 1 : 0); t <= 1 + (k > 1 ? 1 : 0); t++) {
+      const x = Math.round(ex + px * (k + 1) + ca * t);
+      const y = Math.round(ey + py * (k + 1) + sa * t);
+      b.set(x, y, k === 3 ? STEEL.W : k === 2 ? STEEL.S : STEEL.s);
+    }
+  }
+  b.set(Math.round(hx + ca * 7), Math.round(hy + sa * 7), STEEL.d);
+}
+
+/** Drewniana laska z liśćmi i świecącym nasionkiem (akcent). */
+function leafStaff(b, hx, hy, tilt, acc, glow) {
+  const topX = hx + tilt;
+  b.line(hx - (tilt ? 1 : 0), hy + 4, topX, hy - 7, '#8a5430');
+  b.set(topX - 1, hy - 8, '#8a5430');
+  b.set(topX - 1, hy - 9, '#8a5430');
+  b.set(topX, hy - 10, '#8a5430');
+  b.set(topX + 1, hy - 9, '#8a5430');
+  b.set(topX, hy - 9, glow ? '#ffffff' : acc[3]);
+  for (const [dx, dy, c] of [[-2, -8, '#4a9a3e'], [-2, -7, '#8fd45e'], [2, -8, '#4a9a3e'], [2, -10, '#8fd45e'], [1, -6, '#4a9a3e']]) b.set(topX + dx, hy + dy, c);
+}
+
+/** Kula ognia zabarwiona akcentem. */
+function fireOrb(b, cx, cy, r, acc, frame) {
+  const outer = mix(acc[2], '#ff8a3d', 0.35);
+  b.ellipse(cx + 0.5, cy + 0.5, r + 0.5, r + 0.5, outer);
+  b.ellipse(cx + 0.5, cy + 0.5, Math.max(0.8, r - 0.4), Math.max(0.8, r - 0.4), acc[4]);
+  b.set(cx, cy, '#ffffff');
+  b.set(cx + (mod(frame, 2) ? 1 : 0), Math.round(cy - r - 1), mix(acc[3], '#ffd23f', 0.5));
+}
+
 /** Smuga ciosu — łuk jasnych pikseli bez obrysu. */
 function smear(b, cx, cy, r, a0, a1, c1, c2) {
   b.arc(cx, cy, r, c1, a0, a1);
@@ -339,12 +442,16 @@ export function buildHero(skin, accent, anim, frame) {
 
   // --- nogi + ciało ---
   legs(b, def, legX, lifts, bob);
-  if (id === 'kaplan') {
+  if (id === 'kaplan' || def.robe) {
     // szata do ziemi; nogi wystają tylko butami
+    const main = def.robe ? def.robe.main : pal.w;
+    const dark = def.robe ? def.robe.dark : pal.v;
+    const stripe = def.robe ? pal[def.robe.stripe] : pal.a;
     const y0 = BY + 12 + bodyDy;
-    for (let y = y0; y <= 16; y++) b.rect(BX + 1 + bodyDx + (y > 15 ? 1 : 0), y, 9 - (y > 15 ? 1 : 0), 1, y === 16 ? pal.v : pal.w);
-    b.rect(BX + 4 + bodyDx, y0, 2, 17 - y0, pal.a);
-    b.set(BX + 2 + bodyDx, 15, pal.v);
+    for (let y = y0; y <= 16; y++) b.rect(BX + 1 + bodyDx + (y > 15 ? 1 : 0), y, 9 - (y > 15 ? 1 : 0), 1, y === 16 ? dark : main);
+    b.rect(BX + 4 + bodyDx, y0, 2, 17 - y0, stripe);
+    b.set(BX + 2 + bodyDx, 15, dark);
+    if (def.robe) b.rect(BX + 8 + bodyDx, y0, 1, 16 - y0, dark);
   }
   body(b, def, pal, bodyDx, bodyDy, lean);
   if (id === 'kaplan' && a !== 'dash') {
@@ -385,8 +492,24 @@ export function buildHero(skin, accent, anim, frame) {
     } else if (id === 'inzynier') {
       if (wpn === 'wind') wrench(w, hx, hy - 4, -1.62);
       else wrench(w, hx + sh, hy, { idle: -1.3, strike: -0.15, follow: 0.75 }[wpn]);
+    } else if (id === 'barbarzynca') {
+      if (wpn !== 'wind') axe(w, hx + sh, hy, { idle: -1.25, strike: -0.2, follow: 0.9 }[wpn]);
+    } else if (id === 'druid') {
+      const tilt = wpn === 'wind' || wpn === 'strike' ? 2 : 0;
+      leafStaff(w, hx + sh, hy + (wpn === 'wind' ? -1 : 0), tilt, acc, wpn === 'strike');
+    } else if (id === 'mag') {
+      const [ox, oy, r] = { idle: [hx + 1, hy - 1, 1.6], wind: [hx - 1, hy - 6, 2.2], strike: [hx + 4, hy - 2, 2.6], follow: [hx + 2, hy, 1.2] }[wpn];
+      w.rect(hx, hy, 1, 1, SKIN.f);
+      fireOrb(w, ox + sh, oy, r, acc, frame);
     }
   };
+  // ciężki zamach topora: nad głową, za ciałem
+  if (id === 'barbarzynca' && wpn === 'wind') {
+    const back = new PixelBuffer(HERO_W, HERO_H);
+    layer(back, (w) => axe(w, hx - 4, hy - 6, -1.95));
+    back.draw(b);
+    b.px = back.px;
+  }
   layer(b, weapon);
   if (id === 'rycerz' && a !== 'dash') layer(b, (w) => shield(w, bkx - 3, bky - 2, pal));
 
@@ -402,6 +525,21 @@ export function buildHero(skin, accent, anim, frame) {
     } else if (id === 'lucznik' && wpn === 'follow') {
       fx.rect(hx + 4, hy - 1, 5, 1, acc[3]);
       fx.set(hx + 9, hy - 1, light);
+    } else if (id === 'barbarzynca') {
+      if (wpn === 'strike') {
+        smear(fx, hx - 3, hy + 1, 9, -2.6, -0.3, light, acc[3]);
+        smear(fx, hx - 3, hy + 1, 7, -2.2, -0.5, acc[3], acc[2]);
+      }
+      if (wpn === 'follow') {
+        smear(fx, hx - 3, hy + 1, 8, -0.4, 0.9, acc[3], acc[2]);
+        for (const [dx, dy] of [[5, 5], [7, 4], [8, 5], [3, 5]]) fx.set(hx + dx, hy + dy, '#c9b48a');
+      }
+    } else if (id === 'druid' && wpn === 'strike') {
+      const cx = hx + 2;
+      const cy = hy - 9;
+      for (const [dx, dy] of [[3, -2], [4, 1], [-2, -3], [2, 3]]) fx.set(cx + dx, cy + dy, dx > 2 ? '#8fd45e' : acc[3]);
+    } else if (id === 'mag' && wpn === 'strike') {
+      for (const [dx, dy] of [[-3, 0], [-5, 1], [-4, -2], [0, -4], [0, 3]]) fx.set(hx + 4 + dx, hy - 2 + dy, dx < -3 ? acc[2] : '#ffd23f');
     } else if (id === 'kaplan' && wpn === 'strike') {
       const cx = hx + 2;
       const cy = hy - 9;

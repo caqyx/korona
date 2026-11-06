@@ -2,7 +2,7 @@
  * Miniony, wieżyczka, korona, filar i pociski.
  * Każda funkcja zwraca {buf, ox, oy} (kotwica = środek podstawy).
  */
-import { PixelBuffer, OUTLINE, ramp, layer, mod } from './pixels.js';
+import { PixelBuffer, OUTLINE, ramp, mix, layer, mod } from './pixels.js';
 
 const WHITE = '#ffffff';
 const RED = '#ff2848';
@@ -384,6 +384,37 @@ export function buildProjectile(kind, accent, frame) {
       b.outline(OUTLINE);
       break;
     }
+    case 'fireorb': {
+      // kula ognia maga — barwa akcentu z ognistym brzegiem
+      b = new PixelBuffer(9, 9);
+      const outer = mix(acc[2], '#ff8a3d', 0.35);
+      b.ellipse(4.5, 4.5, 3.5, 3.5, outer);
+      b.ellipse(4.2, 4.2, 2.4, 2.4, acc[3]);
+      b.ellipse(4, 4, 1.3, 1.3, f % 2 ? acc[4] : WHITE);
+      b.outline(OUTLINE);
+      b.set(f % 2 ? 1 : 0, f % 2 ? 0 : 2, mix(acc[3], '#ffd23f', 0.5));
+      b.set(f % 2 ? 0 : 2, f % 2 ? 3 : 0, acc[3]);
+      break;
+    }
+    case 'thorn': {
+      // ostry liść/cierń — zielony liść z żyłką i czubkiem w kolorze gracza
+      b = new PixelBuffer(9, 7);
+      const leaf = ramp('#5fd35a');
+      if (f % 2) {
+        b.poly([[1, 3.5], [4, 1.5], [8, 3.5], [4, 5.5]], leaf[2]);
+        b.set(4, 2, leaf[3]);
+        b.set(4, 4, leaf[1]);
+      } else {
+        b.poly([[1, 3.5], [5, 2], [8, 3.5], [5, 5]], leaf[2]);
+        b.set(5, 2, leaf[3]);
+        b.set(5, 4, leaf[1]);
+      }
+      b.line(1, 3, 6, 3, acc[3]);
+      b.set(7, 3, acc[4]);
+      b.set(8, 3, WHITE);
+      b.outline(OUTLINE);
+      break;
+    }
     case 'necroBolt':
       bossOrb(6, WHITE, RED);
       b.set(3, 3, '#39ff9f');
@@ -400,4 +431,4 @@ export function buildProjectile(kind, accent, frame) {
   return { buf: b, ox: Math.floor(b.w / 2), oy: b.h - 1 };
 }
 
-export const PROJECTILE_KINDS = ['bolt', 'pierce', 'turret', 'reflected', 'fireball', 'iceShard', 'web', 'scythe', 'blade', 'necroBolt', 'spark'];
+export const PROJECTILE_KINDS = ['bolt', 'pierce', 'turret', 'reflected', 'fireball', 'iceShard', 'web', 'scythe', 'blade', 'necroBolt', 'spark', 'fireorb', 'thorn'];

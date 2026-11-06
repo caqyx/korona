@@ -15,10 +15,10 @@ export function basicAttack(state, h) {
     const hit = heroMelee(state, h, cfg.dmg * mult, cfg.range * mods.range + HERO.radius, cfg.arc);
     if (hit && h.buffT > 0 && h.buffMult > 1) consumeBuff(h);
   } else {
-    fireHeroProjectile(state, h, cfg.dmg * mult, cfg.speed, cfg.range * mods.range, cfg.r, false, 'bolt');
+    fireHeroProjectile(state, h, cfg.dmg * mult, cfg.speed, cfg.range * mods.range, cfg.r, false, /** @type {any} */ (cfg).proj || 'bolt');
     if (h.buffT > 0 && h.buffMult > 1) consumeBuff(h);
   }
-  h.atkCd = cfg.cd * mods.cd;
+  h.atkCd = cfg.cd * mods.cd * (h.skin === 'barbarzynca' && h.abilT > 0 ? SKINS.barbarzynca.ability.atkCdMul : 1);
   h.revealT = 1;
 }
 

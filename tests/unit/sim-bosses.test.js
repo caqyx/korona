@@ -251,9 +251,11 @@ describe('boss passives', () => {
     }
     expect(hp.cien).toBe(Math.round(BOSS_COMMON.hpPerHero * 2 * 0.7));
     expect(hp.burza).toBe(BOSS_COMMON.hpPerHero * 2);
-    expect(dist.burza).toBeCloseTo(BOSS_COMMON.speed, 6);
-    expect(dist.cien).toBeCloseTo(BOSS_COMMON.speed * 1.3, 6);
-    expect(dist.kolos).toBeCloseTo(BOSS_COMMON.speed * 0.7, 6);
+    expect(dist.burza).toBeCloseTo(BOSS_COMMON.speed * BOSSES.burza.speedMul, 6);
+    expect(dist.cien).toBeCloseTo(BOSS_COMMON.speed * BOSSES.cien.speedMul, 6);
+    expect(dist.kolos).toBeCloseTo(BOSS_COMMON.speed * BOSSES.kolos.speedMul, 6);
+    expect(BOSSES.cien.speedMul / BOSSES.burza.speedMul).toBeCloseTo(1.3, 6);
+    expect(BOSSES.kolos.speedMul / BOSSES.burza.speedMul).toBeCloseTo(0.7, 6);
   });
 
   it('Burza: after 3 hits the next ability area is 1.5x (once)', () => {

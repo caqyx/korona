@@ -25,6 +25,8 @@ export function updateBoss(state, p, input, pressed, dt, rng) {
   const kit = BOSS_KITS[/** @type {keyof typeof BOSS_KITS} */ (b.type)];
   for (const k of BOSS_ABILITY_KEYS) b.cd[k] = Math.max(0, b.cd[k] - dt);
   b.invisT = Math.max(0, b.invisT - dt);
+  p.slowT = Math.max(0, p.slowT - dt);
+  if (p.slowT <= 0) p.slowMul = 1;
   aimAt(p, input.aimX, input.aimY);
   if (state.phase === 'playing') /** @type {any} */ (kit).passive?.(state, p, dt);
   if (b.channel) {
@@ -33,7 +35,7 @@ export function updateBoss(state, p, input, pressed, dt, rng) {
     if (b.channel.t <= 0) b.channel = null;
     if (b.channel?.kind === 'charge') return;
   }
-  moveBoss(p, input, dt, def.speedMul * (b.cast ? BOSS_COMMON.castMoveMul : 1));
+  moveBoss(p, input, dt, def.speedMul * (b.cast ? BOSS_COMMON.castMoveMul : 1) * (p.slowT > 0 ? p.slowMul : 1));
   if (b.cast) return advanceCast(state, p, kit, dt, rng);
   if (state.phase !== 'playing' || b.channel) return;
   const want = pressed & BTN.Q ? 'q' : pressed & BTN.E ? 'e' : pressed & BTN.R ? 'r' : input.buttons & BTN.ATTACK ? 'atk' : null;

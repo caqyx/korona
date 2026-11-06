@@ -4,7 +4,7 @@
  *  - bossrush: 8 bossów (AI) po kolei, każdy silniejszy, losowanych skrzynką; ulepszenia między bossami.
  * Boss sterowany przez AI to gracz z flagą `ai` (id 'AI') — korzysta z tych samych kitów bossów.
  */
-import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, HERO } from './config.js';
+import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, HERO, BOSS_COMMON } from './config.js';
 import { createPlayer } from './state.js';
 import { startTransition, respawnHero, endMatch, leader } from './rules.js';
 import { spawnWaveMinion } from './minions.js';
@@ -186,7 +186,7 @@ export function scaleModeBoss(state, p) {
   const survival = state.mode === 'survival';
   const mul = survival ? 0.5 + 0.12 * md.wave : 1 + MODES.bossrush.hpGrowth * md.defeated;
   const cdMul = survival ? 1 : Math.max(MODES.bossrush.minCdMul, 1 - MODES.bossrush.cdShrink * md.defeated);
-  const base = 120 * Math.max(1, heroes);
+  const base = BOSS_COMMON.hpPerHero * Math.max(1, heroes);
   p.boss.maxHp = Math.round(base * mul * (p.boss.maxHp / Math.max(1, base)));
   p.boss.hp = p.boss.maxHp;
   p.boss.cdMul = Math.round(cdMul * 1000) / 1000;

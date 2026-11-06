@@ -4,7 +4,10 @@ import { HEROES, HERO_FRAMES, HERO_W, HERO_H, buildHero } from '../../src/render
 import { BOSS_TYPES, BOSS_FRAMES, buildBoss } from '../../src/render/sprites/bosses.js';
 import { GLYPHS, iconNames, buildIcon, resolveIcon } from '../../src/render/sprites/icons.js';
 import { buildMinion, buildTurret, buildCrown, buildPillar, buildProjectile, PROJECTILE_KINDS } from '../../src/render/sprites/misc.js';
-import { SKIN_IDS, BOSS_IDS, BOSSES } from '../../src/sim/config.js';
+import { SKIN_IDS as CONFIG_SKINS, BOSS_IDS, BOSSES } from '../../src/sim/config.js';
+
+const NEW_SKINS = ['mag', 'barbarzynca', 'druid'];
+const SKIN_IDS = [...new Set([...CONFIG_SKINS, ...NEW_SKINS])];
 
 const HEX = /^#[0-9a-f]{6}$/;
 const allHex = (b) => b.px.every((c) => c === null || HEX.test(c));
@@ -79,7 +82,8 @@ describe('sprite data', () => {
   it('icons: glyphs are 10x10 and every name resolves to a real glyph', () => {
     for (const [k, g] of Object.entries(GLYPHS)) if (Array.isArray(g)) expect(g.length === 10 && g.every((r) => r.length === 10), k).toBe(true);
     const names = iconNames();
-    expect(names).toHaveLength(5 + 5 + 32);
+    expect(names).toHaveLength(5 + 8 + 32);
+    for (const id of SKIN_IDS) expect(names).toContain(`skin:${id}`);
     for (const n of names) {
       expect(GLYPHS[resolveIcon(n)[0]], n).toBeTruthy();
       const b = buildIcon(n);

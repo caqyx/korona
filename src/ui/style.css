@@ -175,7 +175,7 @@ kbd { font-family: var(--font); font-size: 13px; padding: 1px 4px; display: inli
 .badge.host { background: var(--gold-dd); color: var(--gold); }
 .lobby-main { min-width: 0; }
 .skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
-@media (min-width: 1100px) { .skins { grid-template-columns: repeat(5, 1fr); } .lobby-grid { grid-template-columns: 300px 1fr; } }
+@media (min-width: 1100px) { .skins { grid-template-columns: repeat(4, 1fr); } .lobby-grid { grid-template-columns: 300px 1fr; } }
 
 /* karta bohatera (lobby i Bestiariusz) */
 .skin {

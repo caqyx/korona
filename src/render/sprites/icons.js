@@ -76,6 +76,26 @@ const G = {
     for (const [x, y] of [[4, 4], [5, 4], [4, 5], [5, 5]]) b.set(x, y, null);
     b.set(3, 3, C[4]);
   },
+  roots: ['.1......1.', '1.1....1.1', '1..1..1..1', '.1..11..1.', '..1.22.1..', '...1221...', '....22....', '..b.22.b..', '.bbbbbbbb.', 'bb.b..b.bb'],
+  meteor: (b, C) => {
+    b.line(0, 1, 4, 5, C[3]);
+    b.line(1, 0, 5, 4, C[1]);
+    b.line(0, 3, 3, 6, C[3]);
+    b.ellipse(6.5, 6.5, 3.4, 3.4, C[2]);
+    b.ellipse(6, 6, 2, 2, '#fff1a8');
+    b.set(5, 5, C.w);
+    b.set(9, 2, C[1]);
+  },
+  axe: (b, C) => {
+    b.line(1, 9, 7, 3, C.b);
+    b.line(2, 9, 8, 3, '#5b3420');
+    b.poly([[5, 0], [10, 1], [10, 7], [7, 5]], C[2]);
+    b.line(9, 1, 9, 6, C[4]);
+    b.line(6, 1, 8, 1, C[1]);
+    b.set(0, 1, C[1]);
+    b.set(1, 3, C[1]);
+    b.set(2, 0, C[1]);
+  },
   ring: (b, C) => {
     b.arc(5, 5, 5, C[1]);
     b.arc(5, 5, 3, C[2]);
@@ -210,6 +230,9 @@ const SKIN_ICONS = {
   lotrzyk: ['hood', '#c77dff'],
   kaplan: ['aura', '#ffe066'],
   inzynier: ['turret', '#ff9f43'],
+  mag: ['meteor', '#ff8a3d'],
+  barbarzynca: ['axe', '#ff3b3b'],
+  druid: ['roots', '#5fd35a'],
 };
 const BASIC = {
   atk: ['sword', '#ffffff'],

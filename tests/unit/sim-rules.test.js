@@ -73,7 +73,7 @@ describe('crown pickup at center', () => {
     for (const type of BOSS_IDS) {
       const state = makeMatch([{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }, { id: 'E' }]);
       promoteToBoss(state, state.players[0], type);
-      expect(state.players[0].boss.maxHp).toBe(Math.round(120 * 4 * BOSSES[type].hpMul));
+      expect(state.players[0].boss.maxHp).toBe(Math.round(BOSS_COMMON.hpPerHero * 4 * BOSSES[type].hpMul));
     }
   });
 });
@@ -119,7 +119,7 @@ describe('boss kill / crown takeover', () => {
     ]);
     const [, a, low, exact] = heroes;
     const max = boss.boss.maxHp; // 120 * 4
-    expect(max).toBe(480);
+    expect(max).toBe(BOSS_COMMON.hpPerHero * 4);
     withRng(state, () => {
       hurtBoss(state, boss, 0.3 * max, 'A');
       hurtBoss(state, boss, 0.25 * max - 1, 'L');

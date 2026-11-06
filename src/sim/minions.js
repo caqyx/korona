@@ -43,6 +43,7 @@ export function updateMinions(state, dt) {
   state.minions = state.minions.filter((m) => m.hp > 0);
   for (const m of state.minions) {
     m.cd -= dt;
+    if (m.rootT > 0) m.rootT -= dt;
     if (m.windup > 0) {
       m.windup -= dt;
       if (m.windup <= 0 && m.shot) fireShot(state, m);
@@ -61,6 +62,7 @@ export function updateMinions(state, dt) {
 }
 
 function step(m, dir, dt) {
+  if (m.rootT > 0) return;
   m.x += m.fx * dir * (m.speed ?? NECRO.speed) * dt;
   m.y += m.fy * dir * (m.speed ?? NECRO.speed) * dt;
   resolveStatic(m, m.r);

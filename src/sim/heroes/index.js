@@ -9,8 +9,11 @@ import { lucznik } from './lucznik.js';
 import { lotrzyk } from './lotrzyk.js';
 import { kaplan } from './kaplan.js';
 import { inzynier } from './inzynier.js';
+import { mag } from './mag.js';
+import { barbarzynca } from './barbarzynca.js';
+import { druid } from './druid.js';
 
-export const HERO_ABILITIES = { rycerz, lucznik, lotrzyk, kaplan, inzynier };
+export const HERO_ABILITIES = { rycerz, lucznik, lotrzyk, kaplan, inzynier, mag, barbarzynca, druid };
 
 /**
  * Pełna aktualizacja bohatera dla jednego kroku.
@@ -37,7 +40,7 @@ export function updateHero(state, h, input, pressed, dt, rng) {
   ab.update(state, h, dt);
   if (state.phase !== 'playing') return;
   if (input.buttons & BTN.ATTACK && h.atkCd <= 0 && h.dashT <= 0 && !ab.blocksAttack(h)) basicAttack(state, h);
-  if (pressed & BTN.ABILITY && h.abilCd <= 0 && h.abilT <= 0 && ab.start(state, h)) {
+  if (pressed & BTN.ABILITY && h.abilCd <= 0 && h.abilT <= 0 && ab.start(state, h, input)) {
     h.abilCd *= h.mods?.cd ?? 1;
     h.revealT = 1;
   }
