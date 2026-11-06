@@ -4,7 +4,21 @@ import { createLocalGame } from './localGame.js';
 import { showLocalSetup } from './localSetup.js';
 import { showModeSelect } from './modeSelect.js';
 import { recordMatch } from './achievements.js';
-import { getActiveLook } from './profile.js';
+import { getProfile } from './profile.js';
+import { unlockedIds } from './achievements.js';
+import { findCosmetic, isAvailable, DEFAULT_LOOK } from '../sim/cosmetics.js';
+
+/** Wygląd z profilu ograniczony do odblokowanych i pasujących do klasy przedmiotów. @param {string} skin */
+function activeLookSync(skin) {
+  const look = { ...DEFAULT_LOOK };
+  const un = unlockedIds();
+  const saved = getProfile().look;
+  for (const kind of /** @type {const} */ (['color', 'hat', 'nose'])) {
+    const c = findCosmetic(kind, saved[kind]);
+    if (c && isAvailable(c, un, skin)) look[kind] = c.id;
+  }
+  return look;
+}
 import { showAchievementToast } from './toast.js';
 import { showSummary } from './summary.js';
 import { installKeyboard, createKeyboardMouse, createKeyboard2 } from '../input/keyboard.js';
@@ -57,9 +71,9 @@ export function createCore() {
   }
 
   /** @param {any[]} slots @param {{mode?:string, mapId?:string, aiLevel?:string}} [opts] */
-  async function startLocal(slots, opts = {}) {
-    // gracz 1 (pierwszy slot, jeśli nie jest botem) dostaje swój wygląd z profilu
-    if (slots[0] && slots[0].device !== 'bot') slots[0] = { ...slots[0], look: await getActiveLook(slots[0].skin) };
+  function startLocal(slots, opts = {}) {
+    // gracz 1 (pierwszy slot, jeśli nie jest botem) dostaje swój wygląd z profilu (tylko odblokowane)
+    if (slots[0] && slots[0].device !== 'bot') slots[0] = { ...slots[0], look: activeLookSync(slots[0].skin) };
     const level = opts.aiLevel || 'normal';
     const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i, level), look: s.look }));
     touchRoot.classList.toggle('hidden', !slots.some((s) => s.device === 'touch'));

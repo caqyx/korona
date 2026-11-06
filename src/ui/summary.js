@@ -39,7 +39,7 @@ export function showSummary(state, o) {
     .join('');
   podium.querySelectorAll('.pod-pv').forEach((el, i) => {
     const p = order[i];
-    mount(el, heroPreview(p.skin, slotColor(p.slot), { w: 96, h: 84, maxScale: 4, anim: sorted.indexOf(p) === 0 ? 'attack' : 'idle' }));
+    mount(el, heroPreview(p.skin, slotColor(p.slot), { w: 96, h: 84, maxScale: 4, look: p.look, anim: sorted.indexOf(p) === 0 ? 'attack' : 'idle' }));
   });
   $('#summary-table').innerHTML =
     (state.mode && state.mode !== 'crown'
@@ -53,7 +53,7 @@ export function showSummary(state, o) {
       .join('');
   for (const el of $('#summary-table').querySelectorAll('.mini')) {
     const p = sorted[Number(/** @type {HTMLElement} */ (el).dataset.i)];
-    if (p && SKINS[p.skin]) mount(el, heroPreview(p.skin, slotColor(p.slot), { w: 48, h: 44, maxScale: 2 }));
+    if (p && SKINS[p.skin]) mount(el, heroPreview(p.skin, slotColor(p.slot), { w: 48, h: 44, maxScale: 2, look: p.look }));
   }
   $('#summary-msg').textContent = o.msg || '';
   const rb = /** @type {HTMLButtonElement} */ ($('#btn-rematch'));

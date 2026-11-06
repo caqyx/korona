@@ -187,7 +187,7 @@ export function startOnlineUi(ctx) {
       .join('');
     ul.querySelectorAll('[data-skin-pv]').forEach((el, i) => {
       const sk = /** @type {HTMLElement} */ (el).dataset.skinPv;
-      if (sk && /** @type {any} */ (SKINS)[sk]) mount(el, heroPreview(sk, slotColor(i), { w: 48, h: 44, maxScale: 2 }));
+      if (sk && /** @type {any} */ (SKINS)[sk]) mount(el, heroPreview(sk, slotColor(i), { w: 48, h: 44, maxScale: 2, look: info.players[i]?.look }));
     });
     const st = /** @type {HTMLButtonElement} */ ($('#btn-start'));
     st.classList.toggle('hidden', !info.isOwner);
@@ -211,7 +211,12 @@ export function startOnlineUi(ctx) {
     }).join('');
     for (const el of root.querySelectorAll('.skin')) {
       const id = /** @type {HTMLElement} */ (el).dataset.skin || 'rycerz';
-      mount(el.querySelector('.skin-pv'), heroPreview(id, SKINS[id].color, { w: 96, h: 84, maxScale: 4 }));
+      const pv = el.querySelector('.skin-pv');
+      mount(pv, heroPreview(id, SKINS[id].color, { w: 96, h: 84, maxScale: 4 }));
+      // własny wygląd (tylko odblokowane kosmetyki, skin klasy tylko na swojej klasie)
+      getActiveLook(id)
+        .then((look) => pv?.isConnected && mount(pv, heroPreview(id, SKINS[id].color, { w: 96, h: 84, maxScale: 4, look })))
+        .catch(() => {});
       const pick = () => {
         skin = id;
         session?.setSkin(skin);
