@@ -2,7 +2,10 @@
  * Osiągnięcia (localStorage). Postęp liczony ze statystyk zbieranych po każdym meczu.
  * Nagrody (skiny, czapki, kolory) są na razie oznaczone „wkrótce” — przyjdą z edytorem wyglądu.
  */
+import { rewardFor } from '../sim/cosmetics.js';
+
 const KEY = 'korona.stats';
+const KIND_NAME = { color: 'Kolor', hat: 'Czapka', nose: 'Nos' };
 
 /** @typedef {{matches:number, wins:number, onlineWins:number, crowns:number, crownTime:number, damage:number, bossKills:number, flawless:number, bestWave:number, bossrushClear:number, bossTypes:string[], winClasses:string[], maps:string[]}} Stats */
 
@@ -10,10 +13,10 @@ const KEY = 'korona.stats';
 const emptyStats = () => ({ matches: 0, wins: 0, onlineWins: 0, crowns: 0, crownTime: 0, damage: 0, bossKills: 0, flawless: 0, bestWave: 0, bossrushClear: 0, bossTypes: [], winClasses: [], maps: [] });
 
 /**
- * @typedef {{id:string, name:string, desc:string, goal:number, reward:string, value:(s:Stats)=>number}} Achievement
+ * @typedef {{id:string, name:string, desc:string, goal:number, reward:string, rewardId?:string, value:(s:Stats)=>number}} Achievement
  * @type {Achievement[]}
  */
-export const ACHIEVEMENTS = [
+export const ACHIEVEMENTS = /** @type {Achievement[]} */ ([
   { id: 'first_match', name: 'Pierwsza krew', desc: 'Zagraj pierwszy mecz', goal: 1, reward: 'Kolor: Miedziany', value: (s) => s.matches },
   { id: 'first_win', name: 'Koronacja', desc: 'Wygraj mecz Korony', goal: 1, reward: 'Czapka: Papierowa korona', value: (s) => s.wins },
   { id: 'wins_10', name: 'Władca areny', desc: 'Wygraj 10 meczów Korony', goal: 10, reward: 'Skin: Złoty Rycerz', value: (s) => s.wins },
@@ -30,7 +33,10 @@ export const ACHIEVEMENTS = [
   { id: 'bossrush', name: 'Pogromca', desc: 'Boss Rush: pokonaj wszystkich 8 bossów', goal: 1, reward: 'Skin: Smoczy Barbarzyńca', value: (s) => s.bossrushClear },
   { id: 'flawless', name: 'Bez skazy', desc: 'Wygraj mecz Korony bez ani jednej śmierci', goal: 1, reward: 'Kolor: Diamentowy', value: (s) => s.flawless },
   { id: 'online_win', name: 'Mistrz sieci', desc: 'Wygraj mecz online', goal: 1, reward: 'Nos: Klaun', value: (s) => s.onlineWins },
-];
+]).map((a) => {
+  const c = rewardFor(a.id);
+  return c ? { ...a, rewardId: `${c.kind}:${c.id}`, reward: `${KIND_NAME[c.kind]}: ${c.name}${c.cls ? ' (skin klasy)' : ''}` } : a;
+});
 
 function load() {
   try {
@@ -96,3 +102,6 @@ export function recordMatch(state, meId, o = {}) {
   save(applyMatch(load(), state, meId, o));
   return getAchievements().filter((a) => a.unlocked && !before.has(a.id));
 }
+
+/** Id odblokowanych osiągnięć (do sprawdzania kosmetyków). */
+export const unlockedIds = () => new Set(getAchievements().filter((a) => a.unlocked).map((a) => a.id));

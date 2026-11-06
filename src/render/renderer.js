@@ -282,7 +282,7 @@ function drawEntities(g, cam, view, o, st) {
       draw: () => {
         const [x, y] = worldToArt(cam, gh.x, gh.y);
         g.globalAlpha = Math.max(0, gh.life / 0.2) * 0.5;
-        drawSprite(g, getHeroSprite(p.skin, slotColor(p.slot), 'dash', 0), x, y + 4, p.fx < 0);
+        drawSprite(g, getHeroSprite(p.skin, slotColor(p.slot), 'dash', 0, p.look), x, y + 4, p.fx < 0);
         g.globalAlpha = 1;
       },
     });
@@ -338,7 +338,7 @@ function drawHero(g, cam, view, p, o, st) {
   const blink = p.invulnT > 0 && Math.floor(o.time * 14) % 2 === 0;
   if (blink) g.globalAlpha = 0.4;
   const anim = heroAnim(p, st);
-  drawSprite(g, getHeroSprite(p.skin, color, anim, Math.floor(o.time * (anim === 'walk' ? 10 : 5))), x, y + 4, p.fx < 0);
+  drawSprite(g, getHeroSprite(p.skin, color, anim, Math.floor(o.time * (anim === 'walk' ? 10 : 5)), p.look), x, y + 4, p.fx < 0);
   g.globalAlpha = 1;
   if (p.buffT > 0 && Math.floor(o.time * 10) % 2 === 0) {
     g.fillStyle = '#c77dff';

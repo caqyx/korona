@@ -202,7 +202,7 @@ function drawCooldowns(ctx, cam, p, x, y, u, big) {
     return;
   }
   if (!big) {
-    const spr = getHeroSprite(p.skin, color, 'idle', 0);
+    const spr = getHeroSprite(p.skin, color, 'idle', 0, p.look);
     if (!p.boss) ctx.drawImage(spr.img, Math.round(x), Math.round(y), spr.w * u * 1.5, spr.h * u * 1.5);
     x += p.boss ? 0 : 24 * u;
   }

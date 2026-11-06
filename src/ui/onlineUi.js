@@ -12,7 +12,7 @@ import { createSession } from '../net/session.js';
 import { iceServersFromEnv } from '../net/signaling.js';
 import { measureDevice } from '../net/election.js';
 import { openDirectory } from '../net/directory.js';
-import { getProfile } from './profile.js';
+import { getProfile, getActiveLook } from './profile.js';
 import { step } from '../sim/step.js';
 import { createBenchmarkState } from '../sim/benchmark.js';
 import { createKeyboardMouse } from '../input/keyboard.js';
@@ -83,6 +83,7 @@ export function startOnlineUi(ctx) {
         room,
         nick,
         skin: /** @type {string} */ (skin),
+        look: await getActiveLook(/** @type {string} */ (skin)),
         deviceScore: score,
         isOwner: create,
         iceServers: params.get('ice') === 'none' ? [] : iceServersFromEnv(),
@@ -214,6 +215,7 @@ export function startOnlineUi(ctx) {
       const pick = () => {
         skin = id;
         session?.setSkin(skin);
+        getActiveLook(skin).then((look) => session?.setLook(look));
         for (const c of root.querySelectorAll('.skin')) {
           const on = /** @type {HTMLElement} */ (c).dataset.skin === id;
           c.classList.toggle('sel', on);

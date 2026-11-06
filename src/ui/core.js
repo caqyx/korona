@@ -4,6 +4,7 @@ import { createLocalGame } from './localGame.js';
 import { showLocalSetup } from './localSetup.js';
 import { showModeSelect } from './modeSelect.js';
 import { recordMatch } from './achievements.js';
+import { getActiveLook } from './profile.js';
 import { showAchievementToast } from './toast.js';
 import { showSummary } from './summary.js';
 import { installKeyboard, createKeyboardMouse, createKeyboard2 } from '../input/keyboard.js';
@@ -56,9 +57,11 @@ export function createCore() {
   }
 
   /** @param {any[]} slots @param {{mode?:string, mapId?:string, aiLevel?:string}} [opts] */
-  function startLocal(slots, opts = {}) {
+  async function startLocal(slots, opts = {}) {
+    // gracz 1 (pierwszy slot, jeśli nie jest botem) dostaje swój wygląd z profilu
+    if (slots[0] && slots[0].device !== 'bot') slots[0] = { ...slots[0], look: await getActiveLook(slots[0].skin) };
     const level = opts.aiLevel || 'normal';
-    const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i, level) }));
+    const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i, level), look: s.look }));
     touchRoot.classList.toggle('hidden', !slots.some((s) => s.device === 'touch'));
     // jeden człowiek na dotyku: kamera za graczem (na telefonie cała arena jest za mała)
   const humans = slots.filter((s) => s.device !== 'bot');

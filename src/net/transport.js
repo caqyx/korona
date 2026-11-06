@@ -157,7 +157,7 @@ export function createSupabaseTransport(supabase, selfId) {
     for (const key of Object.keys(state)) {
       const metas = /** @type {any[]} */ (state[key]);
       const p = metas[metas.length - 1];
-      const clean = p && { userId: p.userId, nick: p.nick, skin: p.skin, deviceScore: p.deviceScore, joinedAt: p.joinedAt, ready: p.ready, owner: !!p.owner, status: p.status };
+      const clean = p && { userId: p.userId, nick: p.nick, skin: p.skin, look: p.look, deviceScore: p.deviceScore, joinedAt: p.joinedAt, ready: p.ready, owner: !!p.owner, status: p.status };
       if (clean && validatePresence(clean) && clean.userId === key) list.push(clean);
     }
     for (const cb of presenceCbs) cb(list);

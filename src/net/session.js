@@ -12,6 +12,7 @@ import { disconnectPlayer } from '../sim/rules.js';
 import { makeRng } from '../sim/rng.js';
 import { MATCH } from '../sim/config.js';
 import { pickMapId } from '../sim/maps.js';
+import { sanitizeLook } from '../sim/cosmetics.js';
 
 /**
  * @param {{transport: import('./transport.js').Transport, rooms: any, room:{id:string|null, code:string, ownerId:string|null},
@@ -26,7 +27,7 @@ export function createSession(o) {
   const emit = (ev, data) => (listeners[ev] || []).forEach((cb) => cb(data));
 
   /** @type {import('./transport.js').PresenceInfo} */
-  const me = { userId: self, nick: o.nick, skin: o.skin, deviceScore: o.deviceScore, joinedAt: Date.now(), ready: false, owner: o.isOwner, status: 'lobby' };
+  const me = { userId: self, nick: o.nick, skin: o.skin, look: sanitizeLook(o.look, o.skin), deviceScore: o.deviceScore, joinedAt: Date.now(), ready: false, owner: o.isOwner, status: 'lobby' };
   let baseScore = o.deviceScore;
   /** @type {import('./transport.js').PresenceInfo[]} */
   let presence = [me];
@@ -96,7 +97,7 @@ export function createSession(o) {
     if (ready.length < MATCH.minPlayers) return;
     const seed = (Date.now() ^ Math.floor(Math.random() * 2 ** 31)) >>> 0;
     const order = [...ready].sort((a, b) => a.joinedAt - b.joinedAt);
-    const state = createMatchState({ seed, players: order.map((p) => ({ id: p.userId, nick: p.nick, skin: p.skin })), targetScore: o.targetScore, mapId: pickMapId(seed) });
+    const state = createMatchState({ seed, players: order.map((p) => ({ id: p.userId, nick: p.nick, skin: p.skin, look: p.look })), targetScore: o.targetScore, mapId: pickMapId(seed) });
     const matchId = `m${seed.toString(36)}`;
     match = { id: matchId, epoch: 1, hostId: self, players: order.map((p) => p.userId), startedAt: Date.now(), finalState: null };
     links.setEpoch(1);
@@ -469,8 +470,14 @@ export function createSession(o) {
       emit('presence', lobbyInfo());
     },
     lobbyInfo,
+    /** @param {any} look */
+    setLook(look) {
+      me.look = sanitizeLook(look, me.skin);
+      pushPresence();
+    },
     setSkin(skin) {
       me.skin = skin;
+      me.look = sanitizeLook(me.look, skin);
       pushPresence();
     },
     setReady(r) {

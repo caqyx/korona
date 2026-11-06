@@ -2,6 +2,7 @@ import { MATCH, HERO, SKIN_IDS } from './config.js';
 import { createRngState } from './rng.js';
 import { mapSpawnPoint } from './physics.js';
 import { initMode } from './modes.js';
+import { sanitizeLook } from './cosmetics.js';
 
 /**
  * @typedef {Object} Input
@@ -159,7 +160,11 @@ export function createMatchState(opts) {
 
 /** @param {MatchOptions} opts */
 function createBaseState(opts) {
-  const players = opts.players.slice(0, opts.maxPlayers ?? MATCH.maxPlayers).map((p, i) => createPlayer(p.id, p.nick, p.skin, i, opts.mapId ?? 'arena'));
+  const players = opts.players.slice(0, opts.maxPlayers ?? MATCH.maxPlayers).map((p, i) => {
+    const pl = createPlayer(p.id, p.nick, p.skin, i, opts.mapId ?? 'arena');
+    pl.look = sanitizeLook(/** @type {any} */ (p).look, pl.skin);
+    return pl;
+  });
   return {
     v: 1,
     mapId: opts.mapId ?? 'arena',

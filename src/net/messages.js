@@ -73,7 +73,8 @@ export function validatePresence(p) {
     isNum(p.joinedAt, 0, 1e15) &&
     isBool(p.ready) &&
     (p.owner === undefined || isBool(p.owner)) &&
-    (p.status === undefined || ['lobby', 'match'].includes(p.status))
+    (p.status === undefined || ['lobby', 'match'].includes(p.status)) &&
+    (p.look === undefined || (isObj(p.look) && ['color', 'hat', 'nose'].every((k) => p.look[k] === undefined || isStr(p.look[k], 24))))
   );
 }
 
