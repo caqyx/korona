@@ -430,3 +430,8 @@ kbd { font-family: var(--font); font-size: 13px; padding: 1px 4px; display: inli
   .mode-card .mode-desc { display: none; }
   .map-thumb, .map-thumb canvas { width: 72px; height: 45px; }
 }
+.ach-toast { position: fixed; right: 16px; top: 16px; z-index: 50; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; background: var(--stone-1); color: var(--fg); box-shadow: var(--frame), inset 0 var(--p) 0 0 var(--gold); font-size: 15px; animation: ach-in .25s steps(3); }
+.ach-toast b { color: var(--gold); }
+.ach-toast small { color: var(--muted); }
+.ach-toast.out { opacity: 0; transition: opacity .6s steps(4); }
+@keyframes ach-in { from { transform: translateY(-20px); opacity: 0; } to { transform: none; opacity: 1; } }

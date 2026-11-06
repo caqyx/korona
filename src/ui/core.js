@@ -3,6 +3,8 @@ import { createGameView } from './gameView.js';
 import { createLocalGame } from './localGame.js';
 import { showLocalSetup } from './localSetup.js';
 import { showModeSelect } from './modeSelect.js';
+import { recordMatch } from './achievements.js';
+import { showAchievementToast } from './toast.js';
 import { showSummary } from './summary.js';
 import { installKeyboard, createKeyboardMouse, createKeyboard2 } from '../input/keyboard.js';
 import { createGamepad } from '../input/gamepad.js';
@@ -65,7 +67,9 @@ export function createCore() {
     const game = createLocalGame({ slots: players, seed: (Date.now() & 0xffffffff) >>> 0, targetScore: target, speed: Number(params.get('speed')) || 1, mode: /** @type {any} */ (opts.mode), mapId: opts.mapId, aiLevel: /** @type {any} */ (level) }, (finalState) => {
       touchRoot.classList.add('hidden');
       keepAwake(false);
+      const unlocked = recordMatch(finalState, 'L1');
       showSummary(finalState, { canRematch: true, onRematch: () => startLocal(slots, opts), onBack: backToMenu });
+      if (unlocked.length) showAchievementToast(unlocked);
     });
     window.__korona = { mode: 'local', getState: () => game.state };
     gameView.setSource(game);

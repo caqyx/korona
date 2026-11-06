@@ -79,7 +79,10 @@ export function hurtBoss(state, bossP, dmg, attackerId) {
   const amount = dmg * def.dmgTakenMul * feverMultiplier(b.reign);
   b.hp = Math.max(0, b.hp - amount);
   const attacker = state.players.find((p) => p.id === attackerId);
-  if (attacker && !attacker.boss) attacker.dmgToBoss += amount;
+  if (attacker && !attacker.boss) {
+    attacker.dmgToBoss += amount;
+    attacker.dmgTotal = (attacker.dmgTotal || 0) + amount;
+  }
   state.events.push({ t: 'bossHit', id: bossP.id, by: attackerId, x: bossP.x, y: bossP.y, dmg: Math.round(amount * 10) / 10 });
   if (b.hp <= 0) onBossKilled(state, bossP, attackerId);
   return true;

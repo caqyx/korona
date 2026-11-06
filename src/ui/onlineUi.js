@@ -11,6 +11,8 @@ import { getSupabase, hasSupabaseConfig, signInAnon, createRoomsApi, isValidRoom
 import { createSession } from '../net/session.js';
 import { iceServersFromEnv } from '../net/signaling.js';
 import { measureDevice } from '../net/election.js';
+import { openDirectory } from '../net/directory.js';
+import { getProfile } from './profile.js';
 import { step } from '../sim/step.js';
 import { createBenchmarkState } from '../sim/benchmark.js';
 import { createKeyboardMouse } from '../input/keyboard.js';
@@ -32,11 +34,32 @@ export function startOnlineUi(ctx) {
 
   const msg = (t) => ($('#start-msg').textContent = t);
 
-  async function enter(create) {
+  /** Katalog pokoi (ogłaszanie własnego pokoju na liście Multiplayer). */
+  let directory = /** @type {import('../net/directory.js').Directory|null} */ (null);
+  let roomCode = '';
+  const announce = (info) => {
+    if (!directory || !info?.isOwner) return;
+    directory.announce({
+      code: roomCode,
+      ownerNick: ctx.nickInput.value.trim() || 'Gracz',
+      players: info.players.length,
+      max: 6,
+      status: info.phase === 'lobby' ? 'lobby' : 'playing',
+      createdAt: createdAt,
+    });
+  };
+  let createdAt = Date.now();
+
+  /**
+   * Wejście do pokoju: create=true tworzy nowy; inaczej dołącza po kodzie (parametr lub pole #join-code).
+   * @param {boolean} create @param {string} [codeParam]
+   */
+  async function enter(create, codeParam) {
     if (busy) return;
     const nick = ctx.nickInput.value.trim() || `Gracz${Math.floor(Math.random() * 900 + 100)}`;
     ctx.nickInput.value = nick;
-    const codeIn = /** @type {HTMLInputElement} */ ($('#join-code')).value.trim().toUpperCase();
+    skin = getProfile().skin || skin;
+    const codeIn = (codeParam || /** @type {HTMLInputElement} */ ($('#join-code'))?.value || '').trim().toUpperCase();
     if (!create && !isValidRoomCode(codeIn)) return msg('Kod: 5 znaków (bez 0/O/1/I).');
     busy = true;
     msg('Mierzę urządzenie…');
@@ -69,7 +92,14 @@ export function startOnlineUi(ctx) {
         targetScore: Number(params.get('target')) || undefined,
       });
       wireSession(session, room.code);
+      roomCode = room.code;
+      createdAt = Date.now();
+      if (create) {
+        directory?.close();
+        directory = await openDirectory({ forceLocal: !sb });
+      }
       await session.join();
+      announce(session.lobbyInfo());
       if (!create) {
         await new Promise((r) => setTimeout(r, 1200));
         const info = session.lobbyInfo();
@@ -96,7 +126,10 @@ export function startOnlineUi(ctx) {
       getState: () => s.getState(),
       debug: () => s.debug(),
     };
-    s.on('presence', renderLobby);
+    s.on('presence', (info) => {
+      renderLobby(info);
+      announce(info);
+    });
     s.on('lobby', (info) => {
       ctx.gameView.setSource(null);
       ctx.touchRoot.classList.add('hidden');
@@ -105,6 +138,7 @@ export function startOnlineUi(ctx) {
       showScreen('#screen-lobby');
     });
     s.on('matchStart', () => {
+      announce({ ...s.lobbyInfo(), phase: 'match' });
       ctx.gameView.cam.mode = 'follow';
       ctx.gameView.setSource({ frame: () => s.frame() });
       ctx.touchRoot.classList.toggle('hidden', device?.kind !== 'touch');
@@ -114,6 +148,7 @@ export function startOnlineUi(ctx) {
     });
     s.on('matchEnd', ({ state, saved, isOwner }) => {
       document.body.dataset.inMatch = '0';
+      ctx.onMatchRecorded?.(state, s.selfId, { online: true });
       keepAwake(false);
       ctx.touchRoot.classList.add('hidden');
       const note = saved ? (saved.saved ? 'Wynik zapisany w Supabase.' : `Wynik niezapisany (${saved.reason}).`) : '';
@@ -124,6 +159,8 @@ export function startOnlineUi(ctx) {
         onBack: async () => {
           await s.leave();
           session = null;
+          directory?.close();
+          directory = null;
           ctx.backToMenu();
         },
       });
@@ -205,6 +242,8 @@ export function startOnlineUi(ctx) {
     $('#lobby-msg').textContent = r && !r.ok ? r.reason : '';
   };
   $('#btn-leave').onclick = async () => {
+    directory?.close();
+    directory = null;
     await session?.leave();
     session = null;
     ctx.backToMenu();

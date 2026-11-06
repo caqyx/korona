@@ -94,6 +94,7 @@ export function promoteToBoss(state, p, type) {
   };
   p.alive = true;
   p.hp = HERO.hp;
+  if (!p.ai) p.bossTypes = (p.bossTypes || []).includes(type) ? p.bossTypes : [...(p.bossTypes || []), type];
   p.dashT = 0;
   p.abilT = 0;
   p.stunT = 0;
