@@ -5,11 +5,11 @@
  * Przełączanie: start nowego trybu wyrównany do taktu/miary, crossfade ~0.5 s.
  */
 import { E, setWave, applyEnvelope, WAVE_GAIN } from './engine.js';
-import { SONGS } from './songs.js';
+import { SONGS, PLAYLISTS, ROTATING, pickSong, rotationStep } from './playlist.js';
 import { compileSong } from './pattern.js';
 import { midiToFreq, songStepAt, pickStartTime } from './theory.js';
 
-export const MUSIC_MODES = ['menu', 'hero', 'boss', 'case', 'victory', 'off'];
+export const MUSIC_MODES = ['menu', 'hero', 'boss', 'survival', 'bossrush', 'case', 'victory', 'defeat', 'off'];
 
 const TICK_MS = 25;
 const LOOKAHEAD = 0.12;
@@ -20,13 +20,34 @@ const ENTRY = {
   menu: { quantize: 'bar', fadeIn: FADE },
   hero: { quantize: 'bar', fadeIn: FADE },
   boss: { quantize: 'bar', fadeIn: 0.25 },
+  survival: { quantize: 'bar', fadeIn: FADE },
+  bossrush: { quantize: 'bar', fadeIn: 0.25 },
+  defeat: { quantize: 'beat', fadeIn: 0.05 },
   case: { quantize: 'none', fadeIn: 0.05 }, // zsynchronizowane z animacją 3.2 s
   victory: { quantize: 'beat', fadeIn: 0.05 },
 };
 
+/** Rotacja: stary utwór zaczyna gasnąć tyle przed granicą pętli, nowy wchodzi na niej. */
+const ROTATE_FADE = 0.6;
+const ROTATE_PREP = 1.0;
+
 /** @type {Record<string, ReturnType<typeof compileSong>>} */
 const compiled = {};
 const getSong = (name) => (compiled[name] ??= compileSong(/** @type {any} */ (SONGS)[name]));
+
+/**
+ * Lista utworów trybu (debug). Bez argumentu — wszystkie tryby.
+ * @param {string} [mode]
+ */
+export function listSongs(mode) {
+  const info = (id) => {
+    const c = getSong(id);
+    const s = /** @type {any} */ (SONGS)[id];
+    return { id, title: s.title, mood: s.mood, bpm: c.bpm, bars: c.len / c.stepsPerBar, seconds: +(c.len * c.stepDur).toFixed(2), loop: c.loop };
+  };
+  if (mode === undefined) return Object.fromEntries(Object.entries(PLAYLISTS).map(([m, l]) => [m, l.map(info)]));
+  return (/** @type {any} */ (PLAYLISTS)[mode] || []).map(info);
+}
 
 /** Kanał tonalny: trwały oscylator → obwiednia (→ echo dla leadu). */
 function toneChannel(ac, def, out, t, stepDur) {
@@ -138,12 +159,15 @@ function noiseChannel(ac, def, out, t, stepDur) {
 const CHANNEL = { tone: toneChannel, kick: kickChannel, noise: noiseChannel };
 
 class Player {
-  /** @param {string} name @param {number} t0 @param {number} fadeIn */
-  constructor(name, t0, fadeIn) {
+  /** @param {string} mode @param {string} name @param {number} t0 @param {number} fadeIn */
+  constructor(mode, name, t0, fadeIn) {
     const ac = /** @type {AudioContext} */ (E.ac);
+    this.mode = mode;
     this.name = name;
     this.song = getSong(name);
     this.t0 = t0;
+    const list = /** @type {any} */ (PLAYLISTS)[mode] || [];
+    this.rotateAt = ROTATING.has(mode) && list.length > 1 ? t0 + rotationStep(this.song) * this.song.stepDur : Infinity;
     this.stepDur = this.song.stepDur;
     this.stepsPerBar = this.song.stepsPerBar;
     this.stepsPerBeat = this.song.stepsPerBeat;
@@ -215,6 +239,10 @@ class Player {
 }
 
 let desired = 'off';
+/** @type {string|null} wymuszony utwór (debug) dla bieżącego wejścia w tryb */
+let forced = null;
+/** @type {Record<string, string>} ostatni utwór per tryb */
+const lastSong = {};
 /** @type {Player[]} */
 let players = [];
 /** @type {ReturnType<typeof setInterval>|null} */
@@ -224,6 +252,9 @@ function tick() {
   const ac = E.ac;
   if (!ac) return;
   const now = ac.currentTime;
+  for (const p of [...players]) {
+    if (!p.fading && p.mode === desired && p.rotateAt - now < ROTATE_PREP) rotate(p);
+  }
   for (const p of players) p.schedule(now, now + LOOKAHEAD);
   players = players.filter((p) => {
     if (now > p.stopAt + 0.1) {
@@ -240,15 +271,41 @@ function tick() {
 
 const ensureTimer = () => (timer ??= setInterval(tick, TICK_MS));
 
-/** Przełącza tryb (zapamiętuje go, jeśli kontekst jeszcze nie istnieje). @param {string} mode */
-export function setMode(mode) {
+/**
+ * Przełącza tryb (zapamiętuje go, jeśli kontekst jeszcze nie istnieje).
+ * @param {string} mode @param {{song?: string}} [opts] song — wymuś konkretny utwór trybu (debug)
+ */
+export function setMode(mode, opts) {
   if (!MUSIC_MODES.includes(mode)) mode = 'off';
-  if (mode === desired) return;
+  const want = opts?.song && (/** @type {any} */ (PLAYLISTS)[mode] || []).includes(opts.song) ? opts.song : null;
+  if (mode === desired && (!want || want === currentSong())) return;
   desired = mode;
+  forced = want;
   if (E.ac) start(mode);
 }
 
 export const getMode = () => desired;
+
+/** Id utworu, który aktualnie prowadzi (ostatni niewygaszany), albo null. */
+export function currentSong() {
+  const p = players.filter((x) => !x.fading).pop();
+  return p ? p.name : null;
+}
+
+/** Wybiera utwór dla trybu, unikając ostatniego granego w tym trybie. */
+function chooseSong(mode) {
+  const id = forced || pickSong(/** @type {any} */ (PLAYLISTS)[mode], lastSong[mode]);
+  forced = null;
+  lastSong[mode] = /** @type {string} */ (id);
+  return /** @type {string} */ (id);
+}
+
+/** Płynne przejście do następnego utworu tego samego trybu na granicy pętli. */
+function rotate(p) {
+  const next = chooseSong(p.mode);
+  p.fadeOut(p.rotateAt - ROTATE_FADE * 0.6, ROTATE_FADE);
+  players.push(new Player(p.mode, next, p.rotateAt, ROTATE_FADE));
+}
 
 /** Wołane po utworzeniu kontekstu: uruchamia tryb ustawiony wcześniej. */
 export function onContextReady() {
@@ -268,7 +325,7 @@ function start(mode) {
   const entry = /** @type {any} */ (ENTRY)[mode];
   const t0 = pickStartTime(now, cur, { quantize: entry.quantize });
   for (const p of players) p.fadeOut(t0, mode === 'case' ? 0.35 : FADE);
-  players.push(new Player(mode, t0, entry.fadeIn));
+  players.push(new Player(mode, chooseSong(mode), t0, entry.fadeIn));
   tick();
   ensureTimer();
 }

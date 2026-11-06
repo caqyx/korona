@@ -4,17 +4,19 @@
  *
  * unlockAudio()              — rejestruje nasłuch gestów (tworzy/wznawia kontekst)
  * play(name, {volume, pitch}) — efekt (losowa wariacja wysokości, limity głosów)
- * setMusicMode(mode)         — 'menu'|'hero'|'boss'|'case'|'victory'|'off' (crossfade, wyrównanie do taktu)
+ * setMusicMode(mode)         — 'menu'|'hero'|'boss'|'survival'|'bossrush'|'case'|'victory'|'defeat'|'off'
+ *                              (crossfade, wyrównanie do taktu; tryby z kilkoma utworami rotują po ~2 pętlach)
+ * listSongs(mode?)           — lista utworów trybu (debug)
  * getSettings()/setSettings(partial) — {master, music, sfx (0..1), muted, haptics}, localStorage 'korona.audio'
  * setMuted(bool), vibrate(ms|pattern)
  */
 import { E, ensureContext, applyGains, tone, noise } from './engine.js';
-import { setMode, getMode, onContextReady, MUSIC_MODES } from './music.js';
+import { setMode, getMode, onContextReady, currentSong, listSongs, MUSIC_MODES } from './music.js';
 import { noteToFreq as N, jitter } from './theory.js';
 import { VoiceLimiter } from './voices.js';
 import { loadSettings, saveSettings, sanitizeSettings, defaultStorage, sliderToGain } from './settings.js';
 
-export { MUSIC_MODES };
+export { MUSIC_MODES, listSongs };
 
 let settings = loadSettings(defaultStorage());
 const limiter = new VoiceLimiter(32);
@@ -257,12 +259,18 @@ export const setMuted = (m) => {
 
 // ------------------------------------------------------------------ muzyka / haptyka
 
-/** @param {'menu'|'hero'|'boss'|'case'|'victory'|'off'|string} mode */
-export function setMusicMode(mode) {
-  setMode(mode);
+/**
+ * @param {'menu'|'hero'|'boss'|'survival'|'bossrush'|'case'|'victory'|'defeat'|'off'|string} mode
+ * @param {{song?: string}} [opts] opcjonalnie konkretny utwór z playlisty trybu (debug/testy)
+ */
+export function setMusicMode(mode, opts) {
+  setMode(mode, opts);
 }
 
 export const getMusicMode = getMode;
+
+/** Id aktualnie prowadzącego utworu (debug) albo null. */
+export const getMusicSong = currentSong;
 
 /** Wibracja (mobile), jeśli włączona w ustawieniach i wspierana. @param {number|number[]} pattern */
 export function vibrate(pattern) {

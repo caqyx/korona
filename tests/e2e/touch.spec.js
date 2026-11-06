@@ -2,7 +2,7 @@ import { test, expect, devices } from '@playwright/test';
 
 test.use({ ...devices['Pixel 7 landscape'] });
 
-test('dotyk: celowanie przeciąganiem (bez auto-aim) — Meteor spada w wycelowany punkt', async ({ page }) => {
+test('dotyk (jak Brawl Stars): przeciągnięcie celuje ręcznie — Meteor spada w wycelowany punkt', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?transport=local');
@@ -30,4 +30,24 @@ test('dotyk: celowanie przeciąganiem (bez auto-aim) — Meteor spada w wycelowa
   expect(z.x).toBeLessThan(me.x - 2); // poleciał w lewo, tam gdzie przeciągnięto
   expect(Math.abs(z.y - me.y)).toBeLessThan(1.5);
   expect(errors).toEqual([]);
+});
+
+test('dotyk (jak Brawl Stars): tap = automatyczny strzał w najbliższy cel', async ({ page }) => {
+  await page.goto('/?transport=local');
+  await page.click('#btn-local');
+  await page.click('[data-mode="crown"]');
+  await page.click('#mode-root [data-skin="mag"]');
+  await page.selectOption('#mode-device', 'touch');
+  await page.click('[data-bots="1"]');
+  await page.click('#btn-mode-start');
+  await page.waitForFunction(() => window.__korona.getState().phase === 'playing', null, { timeout: 15000 });
+  const me = await page.evaluate(() => {
+    const p = window.__korona.getState().players[0];
+    return { x: p.x, y: p.y };
+  });
+  await page.locator('.tb[data-b="ability"]').tap();
+  await expect.poll(() => page.evaluate(() => window.__korona.getState().zones.find((z) => z.kind === 'meteorHero') ?? null)).not.toBe(null);
+  const z = await page.evaluate(() => window.__korona.getState().zones.find((z) => z.kind === 'meteorHero'));
+  // auto-cel: korona na środku areny (brak bossa) — meteor bliżej środka niż gracz
+  expect(Math.hypot(z.x, z.y)).toBeLessThan(Math.hypot(me.x, me.y) - 2);
 });

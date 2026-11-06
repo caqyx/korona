@@ -109,3 +109,7 @@ export function pickStartTime(now, cur, { quantize = 'bar', maxWait = 0.9, minLe
   const t = at(cur.stepsPerBeat * cur.stepDur);
   return t - now <= Math.max(maxWait, minLead) ? t : earliest;
 }
+
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+/** @param {number} midi → np. 69 → 'A4' (krzyżyki) */
+export const midiToName = (midi) => `${NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;

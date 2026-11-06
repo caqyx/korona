@@ -54,7 +54,9 @@ const MENU_LEAD = join(
 );
 
 export const MENU = {
-  name: 'menu',
+  name: 'menu-dawn',
+  title: 'Dawn Over the Arena',
+  mood: 'calm, C major',
   bpm: 96,
   channels: [
     { id: 'lead', type: 'tone', wave: 'p25', vol: 0.15, gate: 0.92, adsr: { a: 0.01, d: 0.12, s: 0.65, r: 0.06 }, echo: 0.3, vib: 9, track: MENU_LEAD },
@@ -101,7 +103,9 @@ const HERO_FILL = '. . . . X . . . X . x x X x X X';
 const HERO_HAT = 'x . x . x . o . x . x . x . o .';
 
 export const HERO = {
-  name: 'hero',
+  name: 'hero-crown',
+  title: 'Take the Crown',
+  mood: 'driving, A minor',
   bpm: 140,
   channels: [
     { id: 'lead', type: 'tone', wave: 'p25', vol: 0.14, gate: 0.9, adsr: { a: 0.004, d: 0.1, s: 0.6, r: 0.04 }, echo: 0.22, vib: 8, track: HERO_LEAD },
@@ -137,7 +141,9 @@ const BOSS_FILL = '. . g . X . . g X . X X r r r r';
 const BOSS_HAT = 'x g x g x g x g x g x g x g x g';
 
 export const BOSS = {
-  name: 'boss',
+  name: 'boss-tyrant',
+  title: 'Tyrant',
+  mood: 'dark gallop, A phrygian',
   bpm: 140,
   channels: [
     { id: 'lead', type: 'tone', wave: 'p12', vol: 0.15, gate: 0.88, adsr: { a: 0.003, d: 0.08, s: 0.7, r: 0.03 }, echo: 0.14, vib: 14, track: BOSS_LEAD },
@@ -153,7 +159,9 @@ export const BOSS = {
 // Werbel narasta (ćwierćnuty → ósemki → szesnastki → tremolo), chromatyczny riser A3→E4 nad pedałem E.
 // Drugi takt się zapętla (gdyby animacja trwała dłużej) — napięcie bez rozwiązania.
 export const CASE = {
-  name: 'case',
+  name: 'case-roll',
+  title: 'Drumroll',
+  mood: 'tense riser over E',
   bpm: 150,
   loopStartBar: 1,
   channels: [
@@ -177,7 +185,9 @@ export const CASE = {
 // ---------------------------------------------------------------- VICTORY (150 BPM, bez pętli, ~4.5 s)
 // C | F G | C (wybrzmienie) → cisza
 export const VICTORY = {
-  name: 'victory',
+  name: 'victory-fanfare',
+  title: 'Fanfare',
+  mood: 'triumphant, C major',
   bpm: 150,
   loop: false,
   channels: [
@@ -210,4 +220,5 @@ export const VICTORY = {
   ],
 };
 
-export const SONGS = { menu: MENU, hero: HERO, boss: BOSS, case: CASE, victory: VICTORY };
+/** Utwory pisane ręcznie (pozostałe: songs-extra.js). */
+export const BASE_SONGS = [MENU, HERO, BOSS, CASE, VICTORY];

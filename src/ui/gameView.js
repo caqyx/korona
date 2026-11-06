@@ -13,6 +13,19 @@ import { play, vibrate, setMusicMode } from '../audio/sfx.js';
  * Pętla rysowania (requestAnimationFrame). Logikę gry dostarcza `source`.
  * @param {HTMLCanvasElement} canvas @param {'local'|'online'} mode
  */
+/** Podkład dla stanu gry: wygrana/porażka, skrzynka, boss, tryb z botami albo walka. */
+function musicFor(v, me, meIds) {
+  if (v.phase === 'ended') {
+    const won = meIds.includes(v.winnerId) || v.endReason === 'victory';
+    return won && v.endReason !== 'wipe' ? 'victory' : 'defeat';
+  }
+  if (v.phase === 'transition') return 'case';
+  if (me?.boss) return 'boss';
+  if (v.mode === 'survival') return 'survival';
+  if (v.mode === 'bossrush') return 'bossrush';
+  return 'hero';
+}
+
 const touchVisible = () => {
   const t = document.getElementById('touch');
   return !!t && !t.classList.contains('hidden');
@@ -62,7 +75,7 @@ export function createGameView(canvas, mode) {
     const me = lastFrame.view.players.find((p) => p.id === lastFrame.meIds[0]);
     updateCamera(cam, w, h, me && me.alive ? me : null, dt, lastFrame.view.mapId);
     const v = lastFrame.view;
-    setMusic(v.phase === 'ended' ? 'victory' : v.phase === 'transition' ? 'case' : me?.boss ? 'boss' : 'hero');
+    setMusic(musicFor(v, me, lastFrame.meIds));
     renderer.draw(v, { cam, fx, meIds: lastFrame.meIds, time, overlay: fr?.overlay ?? lastFrame.overlay, mode: cam.mode === 'fit' ? 'local' : 'online', sound: play, touch: touchVisible(), aim: touchVisible() && me ? api.aimSource?.(me) : null });
   }
 
