@@ -3,7 +3,7 @@ export function showAchievementToast(list) {
   for (const [i, a] of list.entries()) {
     const el = document.createElement('div');
     el.className = 'ach-toast';
-    el.innerHTML = `<b>Osiągnięcie odblokowane!</b><span>${escapeHtml(a.name)}</span><small>${escapeHtml(a.reward)} — wkrótce</small>`;
+    el.innerHTML = `<b>Osiągnięcie odblokowane!</b><span>${escapeHtml(a.name)}</span><small>Nagroda: ${escapeHtml(a.reward)} (wkrótce)</small>`;
     document.body.appendChild(el);
     setTimeout(() => el.classList.add('out'), 4200 + i * 600);
     setTimeout(() => el.remove(), 5000 + i * 600);

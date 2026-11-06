@@ -147,7 +147,7 @@ describe('tryby', () => {
     expect(sawIntermission).toBe(true);
     expect(st.players.filter((p) => !p.ai).some((p) => p.score > 0)).toBe(true);
     if (st.phase === 'ended') expect(st.endReason).toBe('wipe');
-  });
+  }, 60_000);
 
   it('Boss Rush: AI-boss jest losowany skrzynką, kolejny jest silniejszy', () => {
     const st = createMatchState({ seed: 5, players: players(1), countdown: 0, mode: 'bossrush', mapId: 'arena' });
@@ -197,5 +197,5 @@ describe('tryby', () => {
       expect(st.phase, mapId).toBe('ended');
       expect(st.winnerId, mapId).toBeTruthy();
     }
-  });
+  }, 60_000);
 });

@@ -5,6 +5,7 @@ import { slotColor } from '../render/palette.js';
 import { connectedPads } from '../input/gamepad.js';
 import { SKIN_TEXT } from './codex.js';
 import { heroPreview, mount } from './previews.js';
+import { getProfile } from './profile.js';
 
 const MAX = MATCH.maxPlayersLocal;
 
@@ -21,7 +22,7 @@ export function showLocalSetup(nick, onStart, onBack, firstDevice = 'kbm') {
     ];
   };
   const slots = [
-    { nick: nick || 'Gracz 1', skin: 'rycerz', device: firstDevice },
+    { nick: nick || 'Gracz 1', skin: getProfile().skin, device: firstDevice },
     { nick: 'Bot 1', skin: 'lucznik', device: 'bot' },
   ];
   const who = (s, i) => `P${i + 1} · ${s.device === 'bot' ? 'Bot' : 'Gracz'}`;

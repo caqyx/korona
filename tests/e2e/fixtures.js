@@ -30,14 +30,32 @@ export async function createPlayers(browser, n, { query = '', scores = [] } = {}
   return { pages, errors, contexts };
 }
 
+/** Menu główne → Multiplayer. */
+export async function openMulti(page) {
+  await page.click('#btn-multi');
+  await page.waitForSelector('#screen-multi:not(.hidden)');
+}
+
+/**
+ * Właściciel tworzy pokój z ekranu Multiplayer. Pierwszy dołączający wchodzi dwuklikiem w pokój
+ * na liście (katalog pokoi), pozostali — kodem.
+ */
 export async function createRoomAndJoin(pages) {
   const [owner, ...rest] = pages;
+  await openMulti(owner);
   await owner.click('#btn-create');
   await owner.waitForSelector('#screen-lobby:not(.hidden)');
   const code = (await owner.textContent('#room-code')).trim();
-  for (const p of rest) {
-    await p.fill('#join-code', code);
-    await p.click('#btn-join');
+  for (const [i, p] of rest.entries()) {
+    await openMulti(p);
+    if (i === 0) {
+      const row = p.locator(`#room-list [data-room="${code}"]`);
+      await row.waitFor();
+      await row.dblclick();
+    } else {
+      await p.fill('#join-code', code);
+      await p.click('#btn-join');
+    }
     await p.waitForSelector('#screen-lobby:not(.hidden)');
   }
   await owner.waitForFunction((n) => document.querySelectorAll('#lobby-players li').length === n, pages.length);

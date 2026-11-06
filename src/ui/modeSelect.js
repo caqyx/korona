@@ -1,6 +1,7 @@
 /**
- * Ekran wyboru trybu walki z botami: Klasyczny vs boty, Przetrwanie, Boss Rush, Własna gra.
- * Wspólne opcje: mapa (losowa lub konkretna), trudność botów, bohater, sterowanie, liczba botów.
+ * Singleplayer: tryby z botami (Klasyczny vs boty, Przetrwanie, Boss Rush) jako główny wybór,
+ * a pod nimi opcje: mapa, trudność botów, liczba botów/sojuszników, sterowanie, bohater.
+ * „Tryb custom” (pełna konfiguracja slotów) to osobny przycisk na dole ekranu (#btn-mode-custom).
  */
 import { $, esc, showScreen } from './dom.js';
 import { SKINS, SKIN_IDS, AI_LEVELS, MODES } from '../sim/config.js';
@@ -8,12 +9,12 @@ import { MAPS, MAP_IDS } from '../sim/maps.js';
 import { slotColor } from '../render/palette.js';
 import { heroPreview, iconCanvas, mount } from './previews.js';
 import { getBest } from './records.js';
+import { getProfile } from './profile.js';
 
 const MODE_CARDS = [
   { id: 'crown', icon: 'mode:crown', name: 'Klasyczny vs boty', desc: 'Zasady korony: zabij bossa, przejmij koronę, pierwszy do 100 pkt. Ty kontra boty.', bots: [1, 7, 3], allies: false },
   { id: 'survival', icon: 'mode:survival', name: 'Przetrwanie', desc: 'Fale szkieletów, pająków, łuczników i osiłków. Co 5. fala boss. Między falami wybierasz ulepszenie.', bots: [0, 3, 1], allies: true },
   { id: 'bossrush', icon: 'mode:bossrush', name: 'Boss Rush', desc: 'Wszystkie 8 bossów po kolei, każdy silniejszy. Między walkami ulepszenia. Pokonaj wszystkich!', bots: [0, 3, 1], allies: true },
-  { id: 'custom', icon: 'mode:custom', name: 'Własna gra', desc: 'Pełna konfiguracja: do 8 graczy na jednym ekranie (klawiatury, pady, dotyk) i boty.', bots: null, allies: false },
 ];
 
 const DEVICES = [
@@ -27,7 +28,7 @@ const DEVICES = [
  * @param {{nick:string, firstDevice:string, onStart:(slots:any[], opts:any)=>void, onCustom:()=>void, onBack:()=>void}} o
  */
 export function showModeSelect(o) {
-  const st = { mode: 'crown', mapId: 'random', aiLevel: 'normal', skin: 'rycerz', device: o.firstDevice, bots: 3 };
+  const st = { mode: 'crown', mapId: 'random', aiLevel: 'normal', skin: getProfile().skin, device: o.firstDevice, bots: 3 };
   const root = $('#mode-root');
 
   const card = (m) => {
@@ -42,10 +43,7 @@ export function showModeSelect(o) {
 
   const render = () => {
     const m = MODE_CARDS.find((x) => x.id === st.mode) || MODE_CARDS[0];
-    const opts =
-      m.id === 'custom'
-        ? `<p class="small">Własna gra otwiera pełną konfigurację slotów.</p>`
-        : `<div class="mode-opts px-box">
+    const opts = `<div class="mode-opts px-box">
         <div class="opt"><span class="lbl">Mapa</span>
           <div class="map-pick">
             <button class="map-chip ${st.mapId === 'random' ? 'sel' : ''}" data-map="random"><span class="map-thumb rnd">?</span><span>Losowa</span></button>
@@ -85,15 +83,14 @@ export function showModeSelect(o) {
     root.querySelectorAll('[data-bots]').forEach((el) => el.addEventListener('click', () => ((st.bots = Number(/** @type {HTMLElement} */ (el).dataset.bots)), render())));
     root.querySelectorAll('[data-skin]').forEach((el) => el.addEventListener('click', () => ((st.skin = /** @type {HTMLElement} */ (el).dataset.skin || 'rycerz'), render())));
     $('#mode-device')?.addEventListener('change', (e) => (st.device = /** @type {HTMLSelectElement} */ (e.target).value));
-    $('#btn-mode-start').textContent = m.id === 'custom' ? 'Konfiguruj' : 'Graj';
   };
 
   $('#btn-mode-start').onclick = () => {
-    if (st.mode === 'custom') return o.onCustom();
     const slots = [{ nick: o.nick || 'Gracz 1', skin: st.skin, device: st.device }];
     for (let i = 0; i < st.bots; i++) slots.push({ nick: `Bot ${i + 1}`, skin: SKIN_IDS[(SKIN_IDS.indexOf(/** @type {any} */ (st.skin)) + 1 + i) % SKIN_IDS.length], device: 'bot' });
     o.onStart(slots, { mode: st.mode, mapId: st.mapId, aiLevel: st.aiLevel });
   };
+  $('#btn-mode-custom').onclick = () => o.onCustom();
   $('#btn-mode-back').onclick = o.onBack;
   render();
   showScreen('#screen-modes');

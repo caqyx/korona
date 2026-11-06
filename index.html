@@ -14,31 +14,76 @@
     <div id="touch" class="touch hidden"></div>
 
     <section id="screen-start" class="screen screen-start">
-      <div class="corner-btns">
-        <button id="btn-install" class="hidden btn-sm">Zainstaluj</button>
-        <button id="btn-settings" class="btn-icon" data-open="settings" aria-label="Ustawienia" title="Ustawienia">
-          <svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M4 0h2v1h-2zM1 1h1v1h-1zM3 1h4v1h-4zM8 1h1v1h-1zM2 2h6v1h-6zM1 3h3v1h-3zM6 3h3v1h-3zM0 4h3v1h-3zM7 4h3v1h-3zM0 5h3v1h-3zM7 5h3v1h-3zM1 6h3v1h-3zM6 6h3v1h-3zM2 7h6v1h-6zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM4 9h2v1h-2z" /></svg>
-        </button>
-      </div>
-      <div class="start-wrap">
-        <header class="brand">
-          <div class="crown-art" aria-hidden="true"><i></i></div>
-          <h1 class="logo" aria-label="KORONA">KORONA</h1>
-          <p class="tag">Zabij bossa. Przejmij koronę. Zostań bossem.</p>
-        </header>
-        <div class="start-panel px-box">
-          <label class="field nick-field"><span class="lbl">Nick</span><input id="nick" maxlength="16" autocomplete="off" placeholder="Twój nick" spellcheck="false" /></label>
-          <button id="btn-create" class="primary big">Stwórz pokój</button>
-          <div class="join-row">
-            <input id="join-code" maxlength="5" placeholder="KOD" class="code-input" autocomplete="off" spellcheck="false" aria-label="Kod pokoju" />
-            <button id="btn-join">Dołącz kodem</button>
+      <div class="menu-layout">
+        <div class="menu-main">
+          <header class="brand">
+            <div class="crown-art" aria-hidden="true"><i></i></div>
+            <h1 class="logo" aria-label="KORONA">KORONA</h1>
+            <p class="tag">Zabij bossa. Przejmij koronę. Zostań bossem.</p>
+          </header>
+          <div class="menu-panel px-box">
+            <label class="field nick-field"><span class="lbl">Nick</span><input id="nick" maxlength="16" autocomplete="off" placeholder="Twój nick" spellcheck="false" /></label>
+            <button id="btn-local" class="primary big menu-btn"><span class="mb-title">Singleplayer</span><small>Boty · Przetrwanie · Boss Rush</small></button>
+            <button id="btn-multi" class="alt big menu-btn"><span class="mb-title">Multiplayer</span><small>Pokoje online · do 6 graczy</small></button>
+            <div class="menu-sec">
+              <button id="btn-ach" class="btn-sec"><span class="pxi ico-trophy" aria-hidden="true"></span>Osiągnięcia</button>
+              <button id="btn-settings" class="btn-icon" data-open="settings" aria-label="Ustawienia" title="Ustawienia"><svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M4 0h2v1h-2zM1 1h1v1h-1zM3 1h4v1h-4zM8 1h1v1h-1zM2 2h6v1h-6zM1 3h3v1h-3zM6 3h3v1h-3zM0 4h3v1h-3zM7 4h3v1h-3zM0 5h3v1h-3zM7 5h3v1h-3zM1 6h3v1h-3zM6 6h3v1h-3zM2 7h6v1h-6zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM4 9h2v1h-2z" /></svg></button>
+              <button id="btn-install" class="hidden btn-sec">Zainstaluj</button>
+            </div>
           </div>
-          <div class="sep"><span>albo</span></div>
-          <button id="btn-local" class="alt">Tryb lokalny <small>(offline, 2–8 graczy)</small></button>
+          <p id="menu-msg" class="msg"></p>
+        </div>
+        <aside class="class-panel px-box" aria-label="Twoja klasa">
+          <h3>Twoja klasa</h3>
+          <div id="class-pv" class="class-pv"><span class="pv-skel" aria-hidden="true"></span></div>
+          <div id="class-name" class="class-name">&nbsp;</div>
+          <div id="class-role" class="class-role">&nbsp;</div>
+          <p id="class-abil" class="class-abil"></p>
+          <button id="btn-customize" class="btn-sec">Customize</button>
+        </aside>
+      </div>
+      <p class="foot" id="transport-info"></p>
+    </section>
+
+    <section id="screen-multi" class="screen hidden">
+      <header class="screen-head">
+        <h2>Multiplayer</h2>
+        <div class="head-tools">
+          <span class="net-info small" id="multi-net"></span>
+          <button class="btn-icon btn-icon-sm" data-open="settings" aria-label="Ustawienia" title="Ustawienia"><svg viewBox="0 0 10 10" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M4 0h2v1h-2zM1 1h1v1h-1zM3 1h4v1h-4zM8 1h1v1h-1zM2 2h6v1h-6zM1 3h3v1h-3zM6 3h3v1h-3zM0 4h3v1h-3zM7 4h3v1h-3zM0 5h3v1h-3zM7 5h3v1h-3zM1 6h3v1h-3zM6 6h3v1h-3zM2 7h6v1h-6zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM4 9h2v1h-2z" /></svg></button>
+        </div>
+      </header>
+      <div class="rooms-box px-box">
+        <div class="rooms-head" aria-hidden="true"><span>Kod</span><span>Gospodarz</span><span>Gracze</span><span>Status</span><span>Wiek</span></div>
+        <ul id="room-list" class="room-list" role="listbox" aria-label="Pokoje"></ul>
+        <div id="rooms-empty" class="rooms-empty">
+          <div class="empty-ico" aria-hidden="true"></div>
+          <p>Brak otwartych pokoi.</p>
+          <p class="small">Utwórz własny pokój albo poczekaj — lista odświeża się na żywo.</p>
         </div>
       </div>
+      <p class="small rooms-hint">Kliknij pokój, by go zaznaczyć · dwuklik (dwa stuknięcia) — dołącz.</p>
       <p id="start-msg" class="msg"></p>
-      <p class="foot" id="transport-info"></p>
+      <div class="multi-bar">
+        <button id="btn-multi-back">Wróć</button>
+        <div class="join-row">
+          <input id="join-code" maxlength="5" placeholder="KOD" class="code-input" autocomplete="off" spellcheck="false" aria-label="Kod pokoju" />
+          <button id="btn-join" class="btn-sm">Dołącz kodem</button>
+        </div>
+        <button id="btn-join-sel" class="alt" disabled>Dołącz</button>
+        <button id="btn-create" class="primary big">Utwórz pokój</button>
+      </div>
+    </section>
+
+    <section id="screen-ach" class="screen hidden">
+      <header class="screen-head">
+        <h2>Osiągnięcia</h2>
+        <div class="ach-sum" id="ach-sum"></div>
+      </header>
+      <div id="ach-list" class="ach-list"></div>
+      <div class="row bottom-bar">
+        <button id="btn-ach-back">Wróć</button>
+      </div>
     </section>
 
     <section id="screen-lobby" class="screen hidden">
@@ -71,15 +116,16 @@
 
     <section id="screen-modes" class="screen hidden">
       <header class="screen-head">
-        <h2>Walka z botami</h2>
+        <h2>Singleplayer</h2>
         <div class="head-tools">
           <button class="btn-sm" data-open="bestiary">Bestiariusz</button>
           <button class="btn-sm" data-open="settings">Sterowanie</button>
         </div>
       </header>
       <div id="mode-root" class="mode-root"></div>
-      <div class="row bottom-bar">
+      <div class="row bottom-bar mode-bar">
         <button id="btn-mode-back">Wróć</button>
+        <button id="btn-mode-custom" class="alt">Tryb custom <small>(do 8 graczy, 1 ekran)</small></button>
         <button id="btn-mode-start" class="primary">Graj</button>
       </div>
     </section>

@@ -1,12 +1,25 @@
 /** Drobne helpery DOM dla ekranów (ładowane na ekranie startowym — bez zależności od gry). */
 export const $ = (sel) => /** @type {HTMLElement} */ (document.querySelector(sel));
 
-const SCREENS = ['#screen-start', '#screen-lobby', '#screen-modes', '#screen-local', '#screen-summary'];
+const SCREENS = ['#screen-start', '#screen-multi', '#screen-ach', '#screen-lobby', '#screen-modes', '#screen-local', '#screen-summary'];
+/** @type {Set<(id:string|null)=>void>} */
+const screenListeners = new Set();
+let currentScreen = /** @type {string|null} */ (null);
 
 /** Pokazuje jeden ekran (albo żaden — wtedy widać grę). @param {string|null} id */
 export function showScreen(id) {
-  for (const s of SCREENS) $(s).classList.toggle('hidden', s !== id);
+  for (const s of SCREENS) $(s)?.classList.toggle('hidden', s !== id);
   if (!id) closeModal();
+  currentScreen = id;
+  for (const cb of [...screenListeners]) cb(id);
+}
+
+export const getScreen = () => currentScreen;
+
+/** Powiadomienie o zmianie ekranu (np. zamknięcie subskrypcji przy wyjściu). Zwraca funkcję wypisania. @param {(id:string|null)=>void} cb */
+export function onScreen(cb) {
+  screenListeners.add(cb);
+  return () => screenListeners.delete(cb);
 }
 
 /** @param {string|null} text */
