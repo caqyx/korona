@@ -69,6 +69,21 @@
       </div>
     </section>
 
+    <section id="screen-modes" class="screen hidden">
+      <header class="screen-head">
+        <h2>Walka z botami</h2>
+        <div class="head-tools">
+          <button class="btn-sm" data-open="bestiary">Bestiariusz</button>
+          <button class="btn-sm" data-open="settings">Sterowanie</button>
+        </div>
+      </header>
+      <div id="mode-root" class="mode-root"></div>
+      <div class="row bottom-bar">
+        <button id="btn-mode-back">Wróć</button>
+        <button id="btn-mode-start" class="primary">Graj</button>
+      </div>
+    </section>
+
     <section id="screen-local" class="screen hidden">
       <header class="screen-head">
         <h2>Tryb lokalny</h2>
@@ -77,6 +92,7 @@
           <button class="btn-sm" data-open="settings">Sterowanie</button>
         </div>
       </header>
+      <div class="row local-opts"><select id="local-map" aria-label="Mapa"></select><select id="local-level" aria-label="Trudność botów"></select></div>
       <p id="local-info" class="small"></p>
       <div id="local-slots" class="slots"></div>
       <div class="row bottom-bar">

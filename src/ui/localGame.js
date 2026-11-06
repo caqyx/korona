@@ -1,13 +1,24 @@
 import { createMatchState, step, cloneState } from '../sim/index.js';
 import { DT, MATCH } from '../sim/config.js';
+import { MAP_IDS } from '../sim/maps.js';
 
 /**
  * Tryb lokalny: 2–8 graczy (ludzie + boty) na jednym ekranie, bez sieci i Supabase.
- * @param {{slots:{id:string,nick:string,skin:string,device:{read:Function}}[], seed:number, targetScore?:number, speed?:number}} opts
+ * @param {{slots:{id:string,nick:string,skin:string,device:{read:Function}}[], seed:number, targetScore?:number, speed?:number,
+ *   mode?:'crown'|'survival'|'bossrush', mapId?:string, aiLevel?:'easy'|'normal'|'hard'}} opts
  * @param {(state:any)=>void} onEnd
  */
 export function createLocalGame(opts, onEnd) {
-  const state = createMatchState({ seed: opts.seed, players: opts.slots.map((s) => ({ id: s.id, nick: s.nick, skin: s.skin })), targetScore: opts.targetScore, maxPlayers: MATCH.maxPlayersLocal });
+  const mapId = !opts.mapId || opts.mapId === 'random' ? MAP_IDS[opts.seed % MAP_IDS.length] : opts.mapId;
+  const state = createMatchState({
+    seed: opts.seed,
+    players: opts.slots.map((s) => ({ id: s.id, nick: s.nick, skin: s.skin })),
+    targetScore: opts.targetScore,
+    maxPlayers: MATCH.maxPlayersLocal,
+    mode: opts.mode || 'crown',
+    mapId,
+    aiLevel: opts.aiLevel || 'normal',
+  });
   let acc = 0;
   let ended = false;
   let paused = false;

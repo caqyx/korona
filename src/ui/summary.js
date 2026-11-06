@@ -2,15 +2,27 @@ import { $, esc, showScreen } from './dom.js';
 import { slotColor } from '../render/palette.js';
 import { SKINS } from '../sim/config.js';
 import { heroPreview, mount } from './previews.js';
+import { saveRecord } from './records.js';
 
 /**
  * Ekran podsumowania: pikselowe podium (sprite'y top 3) i statystyki.
  * @param {any} state końcowy stan meczu @param {{onRematch:()=>void,onBack:()=>void, canRematch:boolean, msg?:string}} o
  */
 export function showSummary(state, o) {
-  const sorted = [...state.players].sort((a, b) => (a.dnf === b.dnf ? b.score - a.score : a.dnf ? 1 : -1));
+  const sorted = [...state.players].filter((p) => !p.ai).sort((a, b) => (a.dnf === b.dnf ? b.score - a.score : a.dnf ? 1 : -1));
   const winner = state.players.find((p) => p.id === state.winnerId);
-  $('#summary-title').textContent = winner ? `Wygrywa ${winner.nick}!` : 'Koniec meczu';
+  const md = state.modeData;
+  const record = state.mode && state.mode !== 'crown' ? saveRecord(state) : false;
+  $('#summary-title').textContent =
+    state.mode === 'survival'
+      ? `Przetrwaliście do fali ${md?.wave ?? 0}${record ? ' — nowy rekord!' : ''}`
+      : state.mode === 'bossrush'
+        ? state.endReason === 'victory'
+          ? `Zwycięstwo! Pokonano wszystkich ${md.total} bossów`
+          : `Pokonani bossowie: ${md?.defeated ?? 0}/${md?.total ?? 8}${record ? ' — nowy rekord!' : ''}`
+        : winner
+          ? `Wygrywa ${winner.nick}!`
+          : 'Koniec meczu';
   const top = sorted.slice(0, 3);
   const order = [top[1], top[0], top[2]].filter(Boolean);
   const podium = $('#podium');
@@ -30,7 +42,9 @@ export function showSummary(state, o) {
     mount(el, heroPreview(p.skin, slotColor(p.slot), { w: 96, h: 84, maxScale: 4, anim: sorted.indexOf(p) === 0 ? 'attack' : 'idle' }));
   });
   $('#summary-table').innerHTML =
-    '<tr><th>#</th><th>Gracz</th><th>Skin</th><th>Pkt</th><th>Korona (s)</th><th>Ostatnie ciosy</th><th>Zabójstwa bossa</th><th>Śmierci</th></tr>' +
+    (state.mode && state.mode !== 'crown'
+      ? '<tr><th>#</th><th>Gracz</th><th>Skin</th><th>Pkt</th><th>—</th><th>Bossowie dobici</th><th>—</th><th>Śmierci</th></tr>'
+      : '<tr><th>#</th><th>Gracz</th><th>Skin</th><th>Pkt</th><th>Korona (s)</th><th>Ostatnie ciosy</th><th>Zabójstwa bossa</th><th>Śmierci</th></tr>') +
     sorted
       .map(
         (p, i) =>

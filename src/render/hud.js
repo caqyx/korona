@@ -2,7 +2,8 @@
  * HUD w pełnej rozdzielczości, w stylu pixel art (font Pixelify Sans, ramki „schodkowe”,
  * ikony ze sprites.js powiększane bez wygładzania).
  */
-import { BOSSES, BOSS_COMMON, SKINS, HERO, RARITY, CASE } from '../sim/config.js';
+import { BOSSES, BOSS_COMMON, SKINS, HERO, RARITY, CASE, UPGRADES } from '../sim/config.js';
+import { getMap } from '../sim/maps.js';
 import { slotColor, CROWN } from './palette.js';
 import { feverMultiplier } from '../sim/combat.js';
 import { getIcon, getBossSprite, getHeroSprite } from './sprites.js';
@@ -56,6 +57,8 @@ export function drawHud(ctx, cam, view, o) {
   drawScores(ctx, cam, view, u);
   drawBossBar(ctx, cam, view, o.time, u);
   drawTimer(ctx, cam, view, u);
+  const modal = view.mode && view.mode !== 'crown';
+  if (modal) drawModeInfo(ctx, cam, view, u);
   drawFeed(ctx, cam, o.fx, u);
   if (o.touch) {
     // na dotyku cooldowny pokazują same przyciski
@@ -72,6 +75,7 @@ export function drawHud(ctx, cam, view, o) {
     text(ctx, `Odrodzenie za ${Math.max(0, me.respawnT).toFixed(1)} s`, cam.w / 2, cam.h * 0.42 + 26 * u, 14 * u, '#ffffff', 'center');
   }
   if (view.phase === 'countdown') countdown(ctx, cam, view, u, o);
+  if (modal && view.phase === 'playing') drawModeStage(ctx, cam, view, o, u);
   if (view.phase === 'transition' && view.transition) drawCase(ctx, cam, view, o.time, o.sound, u);
   if (o.overlay) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -98,11 +102,15 @@ function countdown(ctx, cam, view, u, o) {
   }
   const k = view.countdown % 1;
   text(ctx, String(n), cam.w / 2, cam.h * 0.42, Math.round((56 + k * 30) * u), CROWN, 'center');
-  text(ctx, 'Zdobądź koronę ze środka areny!', cam.w / 2, cam.h * 0.42 + 34 * u, 14 * u, '#ffffff', 'center');
+  const map = getMap(view.mapId);
+  const sub = view.mode === 'survival' ? 'Przetrwaj fale przeciwników!' : view.mode === 'bossrush' ? 'Pokonaj wszystkich bossów!' : 'Zdobądź koronę ze środka areny!';
+  text(ctx, sub, cam.w / 2, cam.h * 0.42 + 34 * u, 14 * u, '#ffffff', 'center');
+  text(ctx, `Mapa: ${map.name}`, cam.w / 2, cam.h * 0.42 + 56 * u, 12 * u, '#b9b6e0', 'center');
+  text(ctx, map.desc, cam.w / 2, cam.h * 0.42 + 74 * u, 10 * u, '#8f88b8', 'center');
 }
 
 function drawScores(ctx, cam, view, u) {
-  const list = [...view.players].sort((a, b) => b.score - a.score);
+  const list = view.players.filter((p) => !p.ai).sort((a, b) => b.score - a.score);
   const h = 26 * u;
   const w = Math.min(132 * u, (cam.w - 16) / Math.max(1, list.length));
   let x = (cam.w - w * list.length) / 2;
@@ -155,11 +163,12 @@ function drawBossBar(ctx, cam, view, time, u) {
 }
 
 function drawTimer(ctx, cam, view, u) {
-  const left = Math.max(0, view.timeLimit - view.matchTime);
+  const modal = view.mode && view.mode !== 'crown';
+  const left = modal ? view.matchTime : Math.max(0, view.timeLimit - view.matchTime);
   const m = Math.floor(left / 60);
   const s = Math.floor(left % 60);
   panel(ctx, cam.w - 64 * u, 34 * u, 56 * u, 20 * u);
-  text(ctx, `${m}:${String(s).padStart(2, '0')}`, cam.w - 36 * u, 48 * u, 13 * u, left < 30 ? '#ff5470' : '#cfd3ff', 'center');
+  text(ctx, `${m}:${String(s).padStart(2, '0')}`, cam.w - 36 * u, 48 * u, 13 * u, !modal && left < 30 ? '#ff5470' : '#cfd3ff', 'center');
 }
 
 function drawFeed(ctx, cam, fx, u) {
@@ -281,4 +290,70 @@ function drawCase(ctx, cam, view, time, sound, u) {
     text(ctx, def.name.toUpperCase(), cx, top + ch + 52 * u, Math.round((26 + pop * 10) * u), def.color, 'center');
     text(ctx, `★ ${rar.name}`, cx, top + ch + 72 * u, 12 * u, rar.color, 'center');
   } else if (lastTickIdx === -2) lastTickIdx = -1;
+}
+
+/** Ramka trybu: fala / boss X z Y, liczba wrogów. */
+function drawModeInfo(ctx, cam, view, u) {
+  const md = view.modeData;
+  if (!md) return;
+  const enemies = (md.queue?.length || 0) + (md.pending?.length || 0) + view.minions.length;
+  const title = view.mode === 'survival' ? `FALA ${md.wave}` : `BOSS ${Math.min(md.total, md.defeated + 1)}/${md.total}`;
+  const sub = view.mode === 'survival' ? (md.stage === 'fight' ? `wrogów: ${enemies}${md.bossWave ? ' + BOSS' : ''}` : 'przerwa') : `pokonani: ${md.defeated}`;
+  panel(ctx, 8, 34 * u, 120 * u, 34 * u);
+  text(ctx, title, 16, 50 * u, 14 * u, '#ffd23f');
+  text(ctx, sub, 16, 63 * u, 10 * u, '#b9b6e0');
+}
+
+/** Przerwa (karty ulepszeń) i zapowiedź fali/bossa. */
+function drawModeStage(ctx, cam, view, o, u) {
+  const md = view.modeData;
+  if (!md) return;
+  if (md.stage === 'pre') {
+    const label = view.mode === 'survival' ? `FALA ${md.wave + 1}` : `BOSS ${md.defeated + 1}/${md.total}`;
+    text(ctx, label, cam.w / 2, cam.h * 0.4, 40 * u, '#ffd23f', 'center');
+    text(ctx, view.mode === 'survival' && (md.wave + 1) % 5 === 0 ? 'Nadchodzi boss!' : 'Przygotuj się…', cam.w / 2, cam.h * 0.4 + 28 * u, 14 * u, '#ffffff', 'center');
+    return;
+  }
+  if (md.stage !== 'intermission' || !view.offers) return;
+  ctx.fillStyle = 'rgba(4,4,10,0.6)';
+  ctx.fillRect(0, 0, cam.w, cam.h);
+  text(ctx, 'WYBIERZ ULEPSZENIE', cam.w / 2, 104 * u, 22 * u, '#ffd23f', 'center');
+  text(ctx, `← → wybór · ATAK zatwierdza · ${Math.ceil(Math.max(0, md.t))} s`, cam.w / 2, 122 * u, 11 * u, '#b9b6e0', 'center');
+  const humans = o.meIds.filter((id) => view.offers[id]);
+  const rows = humans.length ? humans : Object.keys(view.offers).slice(0, 1);
+  const cw = Math.min(170 * u, (cam.w - 40) / 3.3);
+  const ch = 92 * u;
+  rows.forEach((id, r) => {
+    const off = view.offers[id];
+    const p = view.players.find((x) => x.id === id);
+    const y = 140 * u + r * (ch + 26 * u);
+    if (rows.length > 1) text(ctx, p?.nick ?? '', cam.w / 2 - cw * 1.5 - 8, y - 6, 11 * u, p ? slotColor(p.slot) : '#fff');
+    off.choices.forEach((upg, i) => {
+      const x = cam.w / 2 + (i - 1.5) * cw + 4;
+      const sel = off.picked === null ? i === off.sel : off.picked === upg;
+      const dim = off.picked !== null && off.picked !== upg;
+      ctx.globalAlpha = dim ? 0.35 : 1;
+      panel(ctx, x, y, cw - 8, ch, sel ? '#2b2348' : PANEL, sel ? '#ffd23f' : EDGE);
+      icon(ctx, `upg:${upg}`, x + 10, y + 10, 2 * u);
+      text(ctx, UPGRADES[upg].name, x + 14 + 24 * u, y + 24 * u, 13 * u, sel ? '#ffd23f' : '#ffffff');
+      wrap(ctx, UPGRADES[upg].desc, x + 10, y + 48 * u, cw - 28, 11 * u, '#d6cbea');
+      if (off.picked === upg) text(ctx, '✓ WYBRANO', x + (cw - 8) / 2, y + ch - 10, 11 * u, '#5ce07a', 'center');
+      ctx.globalAlpha = 1;
+    });
+  });
+}
+
+function wrap(ctx, str, x, y, maxW, size, color) {
+  ctx.font = `${size}px ${FONT}`;
+  let line = '';
+  let yy = y;
+  for (const w of str.split(' ')) {
+    const t = line ? `${line} ${w}` : w;
+    if (ctx.measureText(t).width > maxW && line) {
+      text(ctx, line, x, yy, size, color);
+      line = w;
+      yy += size * 1.25;
+    } else line = t;
+  }
+  if (line) text(ctx, line, x, yy, size, color);
 }

@@ -171,6 +171,34 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
       case 'go':
         sound('go');
         break;
+      case 'wave':
+        addFeed(fx, e.boss ? `Fala ${e.n} — BOSS!` : `Fala ${e.n}`, e.boss ? '#ff5470' : '#ffd23f');
+        sound(e.boss ? 'roar' : 'countdown');
+        break;
+      case 'waveClear':
+        addFeed(fx, `Fala ${e.n} przetrwana!`, '#5ce07a');
+        sound('reveal');
+        break;
+      case 'bossStage':
+        addFeed(fx, `Boss ${e.n}/${e.total}`, '#ff5470');
+        sound('roar');
+        break;
+      case 'bossDie':
+        burst(fx, e.x, e.y, '#ffffff', 40, 10, 2);
+        burst(fx, e.x, e.y, '#ffd23f', 30, 7, 2);
+        fx.shake = 4;
+        sound('bossDie');
+        break;
+      case 'upgrade':
+      case 'upgradeAuto':
+        sound('pickup');
+        break;
+      case 'burn':
+        burst(fx, e.x, e.y, '#ff8a3d', 8, 3);
+        break;
+      case 'minionHit':
+        addText(fx, e.x, e.y - 1, String(e.dmg), '#ffffff');
+        break;
       default:
         break;
     }

@@ -1,5 +1,6 @@
 import { $, esc, showScreen } from './dom.js';
-import { SKINS, SKIN_IDS, MATCH, BOSS_COMMON } from '../sim/config.js';
+import { SKINS, SKIN_IDS, MATCH, BOSS_COMMON, AI_LEVELS } from '../sim/config.js';
+import { MAPS, MAP_IDS } from '../sim/maps.js';
 import { slotColor } from '../render/palette.js';
 import { connectedPads } from '../input/gamepad.js';
 import { SKIN_TEXT } from './codex.js';
@@ -88,7 +89,15 @@ export function showLocalSetup(nick, onStart, onBack, firstDevice = 'kbm') {
     while (slots.length < MAX) addBot();
     render();
   };
-  $('#btn-local-start').onclick = () => onStart(slots.map((s) => ({ ...s })));
+  $('#btn-local-start').onclick = () =>
+    onStart(
+      slots.map((s) => ({ ...s })),
+      { mode: 'crown', mapId: /** @type {HTMLSelectElement} */ ($('#local-map')).value, aiLevel: /** @type {HTMLSelectElement} */ ($('#local-level')).value },
+    );
+  $('#local-map').innerHTML = `<option value="random">Losowa mapa</option>${MAP_IDS.map((id) => `<option value="${id}">${MAPS[id].name}</option>`).join('')}`;
+  $('#local-level').innerHTML = Object.entries(AI_LEVELS)
+    .map(([k, v]) => `<option value="${k}" ${k === 'normal' ? 'selected' : ''}>Boty: ${v.name}</option>`)
+    .join('');
   $('#btn-local-back').onclick = onBack;
   window.addEventListener('gamepadconnected', render);
   render();

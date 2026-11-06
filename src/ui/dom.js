@@ -1,7 +1,7 @@
 /** Drobne helpery DOM dla ekranów (ładowane na ekranie startowym — bez zależności od gry). */
 export const $ = (sel) => /** @type {HTMLElement} */ (document.querySelector(sel));
 
-const SCREENS = ['#screen-start', '#screen-lobby', '#screen-local', '#screen-summary'];
+const SCREENS = ['#screen-start', '#screen-lobby', '#screen-modes', '#screen-local', '#screen-summary'];
 
 /** Pokazuje jeden ekran (albo żaden — wtedy widać grę). @param {string|null} id */
 export function showScreen(id) {

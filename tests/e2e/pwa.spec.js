@@ -28,6 +28,8 @@ test('PWA: manifest, brak błędów instalowalności, tryb lokalny działa offli
   await ctx.setOffline(true);
   await page.reload();
   await page.click('#btn-local');
+  await page.click('[data-mode="custom"]');
+  await page.click('#btn-mode-start');
   await page.selectOption('select[data-i="0"][data-k="device"]', 'bot');
   await page.click('#btn-local-start');
   await expect.poll(() => page.evaluate(() => window.__korona.getState().phase), { timeout: 10000 }).toBe('playing');
