@@ -25,6 +25,7 @@ import { buildHero, HERO_OX, HERO_OY, HERO_FRAMES } from './sprites/heroes.js';
 import { buildBoss, BOSS_OX, BOSS_OY, BOSS_FRAMES } from './sprites/bosses.js';
 import { buildMinion, MINION_FRAMES, buildTurret, buildCrown, buildPillar, buildProjectile } from './sprites/misc.js';
 import { buildIcon } from './sprites/icons.js';
+import { resolveLook, lookKey, buildCosmeticIcon } from './sprites/cosmetics.js';
 import { mod } from './sprites/pixels.js';
 
 /** Piksele sztuki na metr świata. */
@@ -70,12 +71,24 @@ function cached(key, make) {
  * @param {string} accent kolor gracza (slot) — akcent (np. szal/peleryna/pas)
  * @param {'idle'|'walk'|'attack'|'hurt'|'dash'} anim
  * @param {number} frame licznik klatek (dowolna liczba całkowita; sprite bierze modulo)
+ * @param {{color?: string, hat?: string, nose?: string}} [look] kosmetyki (src/sim/cosmetics.js); brak = DEFAULT_LOOK.
+ *   Skin klasy (np. gold_knight) na innej klasie jest ignorowany; nieznane id → domyślne.
  * @returns {Sprite}
  */
-export function getHeroSprite(skin, accent, anim, frame) {
+export function getHeroSprite(skin, accent, anim, frame, look) {
   const a = anim in HERO_FRAMES ? anim : 'idle';
   const f = mod(frame, HERO_FRAMES[a]);
-  return cached(`h:${skin}:${accent}:${a}:${f}`, () => toSprite(buildHero(skin, accent, a, f), HERO_OX, HERO_OY));
+  const lk = resolveLook(look, skin);
+  return cached(`h:${skin}:${accent}:${a}:${f}:${lookKey(lk)}`, () => toSprite(buildHero(skin, accent, a, f, lk), HERO_OX, HERO_OY));
+}
+
+/**
+ * Ikona 12×12 kosmetyku do siatki edytora: próbka koloru (także skiny klas), czapka albo nos na buzi.
+ * 'none' (czapka/nos) = przekreślenie / pusta buzia. Kotwica (6,6).
+ * @param {'color'|'hat'|'nose'} kind @param {string} id @returns {Sprite}
+ */
+export function getCosmeticIcon(kind, id) {
+  return cached(`ci:${kind}:${id}`, () => toSprite(buildCosmeticIcon(kind, id), 6, 6));
 }
 
 /**

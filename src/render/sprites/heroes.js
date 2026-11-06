@@ -3,6 +3,7 @@
  * Kanwa HERO_W×HERO_H, punkt zaczepienia (HERO_OX, HERO_OY) = środek stóp.
  */
 import { PixelBuffer, OUTLINE, ramp, layer, whiteFlash, redTint, mod, mix } from './pixels.js';
+import { resolveLook, applyLook, postLook, drawHat, drawNose, HEAD } from './cosmetics.js';
 
 export const HERO_W = 24;
 export const HERO_H = 20;
@@ -11,6 +12,8 @@ export const HERO_OY = 17;
 /** Lewy-górny róg siatki ciała na kanwie. */
 const BX = 4;
 const BY = 3;
+/** Lewy-górny róg siatki ciała (dla testów i kosmetyków). */
+export const HERO_BODY_ORIGIN = { x: BX, y: BY };
 
 export const HERO_FRAMES = { idle: 4, walk: 4, attack: 3, dash: 2, hurt: 2 };
 
@@ -370,9 +373,11 @@ function speedLines(b, f, col) {
  * @param {string} skin @param {string} accent @param {string} anim @param {number} frame
  * @returns {PixelBuffer}
  */
-export function buildHero(skin, accent, anim, frame) {
-  const def = HEROES[skin] || HEROES.rycerz;
+export function buildHero(skin, accent, anim, frame, look) {
   const id = HEROES[skin] ? skin : 'rycerz';
+  const lk = resolveLook(look, id);
+  const plain = lk.color === 'default' && lk.hat === 'none' && lk.nose === 'none';
+  const def = plain ? HEROES[id] : applyLook(HEROES[id], id, lk);
   const pal = heroPalette(def, accent);
   const acc = ramp(accent);
   const b = new PixelBuffer(HERO_W, HERO_H);
@@ -454,7 +459,11 @@ export function buildHero(skin, accent, anim, frame) {
     if (def.robe) b.rect(BX + 8 + bodyDx, y0, 1, 16 - y0, dark);
   }
   body(b, def, pal, bodyDx, bodyDy, lean);
-  if (id === 'kaplan' && a !== 'dash') {
+  /** Pozycja punktu siatki ciała na kanwie (z pochyleniem dashu). */
+  const at = (col, row) => [BX + bodyDx + col + (lean ? Math.round(((11 - row) / 11) * lean) : 0), BY + bodyDy + row];
+  const head = HEAD[id];
+  if (lk.nose !== 'none' && head) drawNose(b, lk.nose, ...at(head.nose[0], head.nose[1]));
+  if (id === 'kaplan' && a !== 'dash' && lk.hat === 'none') {
     // aureola
     const glow = mod(frame, 4) === 1 ? GOLD.Y : GOLD.G;
     const y = BY + bodyDy;
@@ -463,6 +472,7 @@ export function buildHero(skin, accent, anim, frame) {
     fx.set(BX + 7 + bodyDx, y + 1, GOLD.g);
   }
   b.outline(K);
+  if (lk.hat !== 'none' && head) layer(b, (w) => drawHat(w, lk.hat, ...at(head.hat[0], head.hat[1])));
 
   // --- broń (osobna warstwa z obrysem) ---
   const sh = lean ? 1 : 0;
@@ -547,7 +557,10 @@ export function buildHero(skin, accent, anim, frame) {
     }
   }
 
+  // nos zawsze na wierzchu (np. przed cięciwą łuku) — ponownie, już bez obrysu
+  if (lk.nose !== 'none' && head) drawNose(b, lk.nose, ...at(head.nose[0], head.nose[1]));
   b.draw(fx);
+  if (!plain) postLook(b, lk, f, { x: at(0, 0)[0], y: at(0, 0)[1] });
 
   if (a === 'hurt') {
     if (f === 0) whiteFlash(b);
