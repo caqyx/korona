@@ -4,7 +4,9 @@
  * bez wygładzania. Animowane podglądy obsługuje jedna wspólna pętla (~8 kl./s),
  * która sama usuwa canvasy odpięte od DOM i zatrzymuje się, gdy nic nie ma.
  */
-import { getHeroSprite, getBossSprite, getIcon } from '../render/sprites.js';
+import * as sprites from '../render/sprites.js';
+
+const { getHeroSprite, getBossSprite, getIcon } = sprites;
 
 /** @typedef {import('../render/sprites.js').Sprite} Sprite */
 
@@ -94,12 +96,33 @@ function animated(get, w, h, cls, maxScale) {
 }
 
 /**
- * Animowany podgląd bohatera (idle). @param {string} skin @param {string} accent
- * @param {{w?:number,h?:number,anim?:'idle'|'walk'|'attack'|'hurt'|'dash', maxScale?:number}} [o]
+ * Animowany podgląd bohatera (idle). `look` = wygląd {color, hat, nose} (kosmetyki).
+ * @param {string} skin @param {string} accent
+ * @param {{w?:number,h?:number,anim?:'idle'|'walk'|'attack'|'hurt'|'dash', maxScale?:number, look?:{color:string,hat:string,nose:string}|null}} [o]
  */
 export function heroPreview(skin, accent, o = {}) {
   const anim = o.anim || 'idle';
-  return animated((f) => getHeroSprite(skin, accent, anim, f), o.w ?? 64, o.h ?? 72, 'pv-hero', o.maxScale ?? 4);
+  const look = o.look || undefined;
+  const draw = /** @type {(...a:any[])=>Sprite} */ (getHeroSprite);
+  return animated((f) => draw(skin, accent, anim, f, look), o.w ?? 64, o.h ?? 72, 'pv-hero', o.maxScale ?? 4);
+}
+
+/**
+ * Ikona kosmetyku 12×12 (jeśli renderer ją udostępnia), inaczej null — UI pokazuje wtedy próbkę koloru / nazwę.
+ * @param {'color'|'hat'|'nose'} kind @param {string} id @param {number} [scale]
+ * @returns {HTMLCanvasElement|null}
+ */
+export function cosmeticIcon(kind, id, scale = 3) {
+  const fn = /** @type {any} */ (sprites).getCosmeticIcon;
+  if (typeof fn !== 'function') return null;
+  const spr = safe(() => fn(kind, id));
+  if (!spr || !spr.img) return null;
+  const c = document.createElement('canvas');
+  c.width = spr.w * scale;
+  c.height = spr.h * scale;
+  c.className = 'px-canvas pv-icon';
+  paint(c, spr, scale, false);
+  return c;
 }
 
 /** Animowany podgląd bossa (idle). @param {string} type @param {{w?:number,h?:number,maxScale?:number}} [o] */
