@@ -76,7 +76,7 @@ function heroBot(state, me, rng, L) {
     mx = dx / d;
     my = dy / d;
   }
-  const esc = rng.next() < L.dodge ? escapeVector(state, me) : null;
+  const esc = escapeVector(state, me, L);
   if (esc) {
     mx = esc.x;
     my = esc.y;
@@ -100,14 +100,36 @@ function avoidTerrain(state, me, mx, my) {
   return [mx, my];
 }
 
-/** Kierunek ucieczki z najbliższego zagrożenia (telegrafu) albo null. */
-function escapeVector(state, me) {
+/** Deterministyczny „rzut kością” dla pary (zagrożenie, bot) — decyzja raz na telegraf, nie co klatkę. */
+function roll(zoneId, botId, salt) {
+  let h = (zoneId * 2654435761) ^ salt;
+  for (let i = 0; i < botId.length; i++) h = Math.imul(h ^ botId.charCodeAt(i), 16777619);
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+/**
+ * Kierunek ucieczki z zagrożenia albo null. Bot jest omylny: nie każdy telegraf zauważa,
+ * reaguje z opóźnieniem, a dash wykonuje tylko czasem i z błędem w czasie.
+ */
+function escapeVector(state, me, L) {
   for (const z of state.zones) {
     if (z.dmg <= 0) continue;
     const ring = z.shape === 'ring';
-    const threat = ring ? z.warn <= 0 && zoneContains(z, me.x, me.y, HERO.radius + 0.8) : z.warn > 0 && z.warn < 0.5 && zoneContains(z, me.x, me.y, HERO.radius + 0.3);
-    if (!threat) continue;
-    if (ring) return { x: 0, y: 0, urgent: true };
+    const inside = ring ? z.warn <= 0 && zoneContains(z, me.x, me.y, HERO.radius + 0.8) : z.warn > 0 && zoneContains(z, me.x, me.y, HERO.radius + 0.3);
+    if (!inside) continue;
+    if (roll(z.id, me.id, 11) > L.dodge) continue; // nie zauważył
+    const elapsed = (z.warnTotal || 0) - Math.max(0, z.warn);
+    if (!ring && elapsed < L.reaction) continue; // jeszcze nie zareagował
+    const wantsDash = roll(z.id, me.id, 23) < L.dash;
+    const dashAt = 0.12 + (roll(z.id, me.id, 37) - 0.5) * 2 * L.dashErr; // idealnie ~0,12 s przed uderzeniem
+    if (ring) {
+      // pierścień: dash w losowym momencie, gdy jest blisko
+      const urgent = wantsDash && roll(z.id, me.id, 41 + Math.floor(state.time * 10)) < 0.35;
+      return { x: 0, y: 0, urgent };
+    }
     let dx = me.x - z.x;
     let dy = me.y - z.y;
     if (z.shape === 'line') {
@@ -118,7 +140,7 @@ function escapeVector(state, me) {
       dy = ny * side;
     }
     const d = Math.hypot(dx, dy) || 1;
-    return { x: dx / d, y: dy / d, urgent: z.warn < 0.2 };
+    return { x: dx / d, y: dy / d, urgent: wantsDash && z.warn <= Math.max(0.02, dashAt) };
   }
   return null;
 }

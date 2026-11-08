@@ -34,7 +34,7 @@ export const SCORE = {
   perCrownSecond: 1,
   /** co ile sekund w koronie przyznawany jest perCrownSecond (strojenie, patrz docs/decisions.md) */
   crownInterval: 3,
-  bossKillsHero: 3,
+  bossKillsHero: 2,
   lastHit: 10,
   assist: 2,
   assistThreshold: 0.25,
@@ -300,9 +300,11 @@ export const UPGRADE_IDS = /** @type {const} */ (['vit', 'dmg', 'cd', 'spd', 'da
 
 /** Poziomy trudności botów. */
 export const AI_LEVELS = {
-  easy: { name: 'Łatwy', aimErr: 1.6, dodge: 0.35, ability: 0.4, attack: 0.7, bossAbility: 0.5 },
-  normal: { name: 'Normalny', aimErr: 0.5, dodge: 0.8, ability: 1, attack: 1, bossAbility: 1 },
-  hard: { name: 'Trudny', aimErr: 0, dodge: 1, ability: 1.6, attack: 1, bossAbility: 1.5 },
+  // dodge: szansa, że bot w ogóle zauważy dany telegraf; reaction: ile s po pojawieniu się telegrafu zaczyna uciekać;
+  // dash: szansa użycia dasha przeciw danemu zagrożeniu; dashErr: rozrzut momentu dasha (s) — za wcześnie = trafienie.
+  easy: { name: 'Łatwy', aimErr: 1.8, dodge: 0.3, reaction: 0.45, dash: 0.2, dashErr: 0.35, ability: 0.4, attack: 0.65, bossAbility: 0.5 },
+  normal: { name: 'Normalny', aimErr: 0.8, dodge: 0.55, reaction: 0.3, dash: 0.4, dashErr: 0.25, ability: 0.8, attack: 0.9, bossAbility: 0.85 },
+  hard: { name: 'Trudny', aimErr: 0.2, dodge: 0.85, reaction: 0.15, dash: 0.75, dashErr: 0.12, ability: 1.4, attack: 1, bossAbility: 1.3 },
 };
 
 /**

@@ -13,6 +13,8 @@ const arg = (name, def) => {
 };
 const MATCHES = arg('matches', 200);
 const SEED = arg('seed', 1);
+// boty na poziomie „trudny” jako przybliżenie wprawnych graczy (normalny/łatwy są celowo omylne)
+const LEVEL = process.argv.includes('--normal') ? 'normal' : 'hard';
 
 export function runMatch(seed) {
   const meta = makeRng({ s: seed * 7919 + 13 });
@@ -31,7 +33,7 @@ export function runMatch(seed) {
   let steps = 0;
   while (state.phase !== 'ended' && steps < 60 * 60 * 12) {
     const inputs = {};
-    for (const p of state.players) inputs[p.id] = botInput(state, p.id, rngs[p.id]);
+    for (const p of state.players) inputs[p.id] = botInput(state, p.id, rngs[p.id], LEVEL);
     step(state, inputs);
     steps++;
     const boss = state.players.find((p) => p.boss && !p.boss.dying);

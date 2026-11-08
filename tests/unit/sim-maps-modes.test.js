@@ -132,7 +132,7 @@ describe('tryby', () => {
     let sawIntermission = false;
     let n = 0;
     while (st.phase !== 'ended' && n < 60 * 60 * 6) {
-      step(st, { p0: botInput(st, 'p0', rngs[0]), p1: botInput(st, 'p1', rngs[1]) });
+      step(st, { p0: botInput(st, 'p0', rngs[0], 'hard'), p1: botInput(st, 'p1', rngs[1], 'hard') });
       if (st.offers) {
         sawIntermission = true;
         for (const o of Object.values(st.offers)) {
