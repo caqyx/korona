@@ -37,7 +37,7 @@ export const pajeczyca = {
   /** Skok: na bohatera najbliższego kursorowi (do 8 m), strefa lądowania 2 m. */
   e: {
     telegraph: (state, p, cast) => {
-      const t = nearestHero(state, cast.ax, cast.ay, Infinity);
+      const t = nearestHero(state, cast.ax, cast.ay, Infinity, [], p.team);
       const ok = t && Math.hypot(t.x - p.x, t.y - p.y) <= C.e.range;
       const [tx, ty] = ok ? [t.x, t.y] : clampAim(p, cast.ax, cast.ay, C.e.range);
       const [x, y] = safeBossPoint(tx, ty);

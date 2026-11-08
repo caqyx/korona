@@ -34,7 +34,7 @@ export const smok = {
   /** Deszcz meteorów: 6 stref w pobliżu bossa, telegraf 0,8 s. */
   r: {
     telegraph: (state, p, cast, rng) => {
-      const heroes = state.players.filter((h) => !h.boss && h.alive && h.connected && Math.hypot(h.x - p.x, h.y - p.y) <= C.r.spread * 1.5);
+      const heroes = state.players.filter((h) => !h.boss && h.alive && h.connected && (h.team === undefined || h.team !== p.team) && Math.hypot(h.x - p.x, h.y - p.y) <= C.r.spread * 1.5);
       for (let i = 0; i < C.r.count; i++) {
         // połowa meteorów celuje w bohaterów, reszta spada losowo w pobliżu
         if (i < Math.ceil(C.r.count / 2) && heroes.length) {

@@ -112,7 +112,9 @@ export function demoteToHero(state, p, rng) {
 
 /** @param {MatchState} state @param {Player} p @param {Rng} rng @param {number} invuln */
 export function respawnHero(state, p, rng, invuln) {
-  const [x, y] = spawnPoint(rng.int(MATCH.spawnCount), state.mapId);
+  let [x, y] = spawnPoint(rng.int(MATCH.spawnCount), state.mapId);
+  // drużyny: odrodzenie po swojej stronie areny
+  if (p.team !== undefined && Math.sign(x) !== (p.team === 0 ? -1 : 1)) x = -x;
   p.x = x;
   p.y = y;
   p.hp = p.maxHp ?? HERO.hp;

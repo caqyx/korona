@@ -103,7 +103,20 @@ function countdown(ctx, cam, view, u, o) {
   const k = view.countdown % 1;
   text(ctx, String(n), cam.w / 2, cam.h * 0.42, Math.round((56 + k * 30) * u), CROWN, 'center');
   const map = getMap(view.mapId);
-  const sub = view.mode === 'survival' ? 'Przetrwaj fale przeciwników!' : view.mode === 'bossrush' ? 'Pokonaj wszystkich bossów!' : 'Zdobądź koronę ze środka areny!';
+  const me = view.players.find((p) => p.id === o.meIds[0]);
+  const teamName = (t) => (t === 0 ? 'Niebieska' : 'Czerwona');
+  const sub =
+    view.mode === 'teams'
+      ? me
+        ? me.boss
+          ? `Jesteś bossem drużyny ${teamName(me.team)} — przetrwaj!`
+          : `Drużyna ${teamName(me.team)}: chroń swojego bossa, pokonaj wrogiego`
+        : 'Bitwa bossów'
+      : view.mode === 'survival'
+        ? 'Przetrwaj fale przeciwników!'
+        : view.mode === 'bossrush'
+          ? 'Pokonaj wszystkich bossów!'
+          : 'Zdobądź koronę ze środka areny!';
   text(ctx, sub, cam.w / 2, cam.h * 0.42 + 34 * u, 14 * u, '#ffffff', 'center');
   text(ctx, `Mapa: ${map.name}`, cam.w / 2, cam.h * 0.42 + 56 * u, 12 * u, '#b9b6e0', 'center');
   text(ctx, map.desc, cam.w / 2, cam.h * 0.42 + 74 * u, 10 * u, '#8f88b8', 'center');
@@ -116,7 +129,7 @@ function drawScores(ctx, cam, view, u) {
   let x = (cam.w - w * list.length) / 2;
   for (const p of list) {
     const c = slotColor(p.slot);
-    panel(ctx, x + 1, 4, w - 2, h, PANEL, p.boss ? CROWN : EDGE);
+    panel(ctx, x + 1, 4, w - 2, h, PANEL, p.team !== undefined ? (p.team === 0 ? '#4f8bff' : '#ff4f5e') : p.boss ? CROWN : EDGE);
     ctx.fillStyle = c;
     ctx.fillRect(Math.round(x + 4), 7, 3 * u, h - 6);
     const pct = Math.min(1, p.score / view.targetScore);
@@ -134,16 +147,25 @@ function drawScores(ctx, cam, view, u) {
 }
 
 function drawBossBar(ctx, cam, view, time, u) {
-  const b = view.players.find((p) => p.boss);
-  if (!b) return;
+  const bosses = view.players.filter((p) => p.boss);
+  if (!bosses.length) return;
+  const n = bosses.length;
+  const total = Math.min(460 * u * (n > 1 ? 1.6 : 1), n > 1 ? cam.w - 160 * u : cam.w * 0.62); // >1 boss: zostaw miejsce na zegar
+  const gap = 46 * u;
+  const w = (total - gap * (n - 1)) / n;
+  bosses.forEach((b, i) => {
+    const x = (cam.w - total) / 2 + i * (w + gap) + 34 * u * (n > 1 ? 0.5 : 0);
+    drawOneBossBar(ctx, cam, view, b, x, 36 * u, w - (n > 1 ? 17 * u : 0), time, u);
+  });
+}
+
+function drawOneBossBar(ctx, cam, view, b, x, y, w, time, u) {
   const def = BOSSES[b.boss.type];
   const rar = RARITY[def.rarity] || RARITY.blue;
-  const w = Math.min(460 * u, cam.w * 0.62);
-  const x = (cam.w - w) / 2;
-  const y = 36 * u;
   const pct = Math.max(0, b.boss.hp / b.boss.maxHp);
   const low = pct <= BOSS_COMMON.lowHpPulse;
-  panel(ctx, x - 34 * u, y - 2, w + 36 * u, 26 * u, PANEL, rar.color);
+  const edge = b.team === 0 ? '#4f8bff' : b.team === 1 ? '#ff4f5e' : rar.color;
+  panel(ctx, x - 34 * u, y - 2, w + 36 * u, 26 * u, PANEL, edge);
   const spr = getBossSprite(b.boss.type, 'idle', Math.floor(time * 5));
   const ps = (22 * u) / Math.max(spr.w, spr.h);
   ctx.drawImage(spr.img, Math.round(x - 31 * u), Math.round(y + 1), Math.round(spr.w * ps), Math.round(spr.h * ps));
@@ -153,13 +175,38 @@ function drawBossBar(ctx, cam, view, time, u) {
   ctx.fillRect(Math.round(x), y + 12 * u, Math.round((w - 6) * pct), 8 * u);
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
   ctx.fillRect(Math.round(x), y + 12 * u, Math.round((w - 6) * pct), 2 * u);
-  // podziałka co 10%
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   for (let i = 1; i < 10; i++) ctx.fillRect(Math.round(x + ((w - 6) * i) / 10), y + 12 * u, 1, 8 * u);
   text(ctx, `${def.name} — ${b.nick}`, x, y + 9 * u, 10 * u, '#ffffff');
   text(ctx, `${Math.ceil(b.boss.hp)}/${b.boss.maxHp}`, x + w - 8, y + 9 * u, 10 * u, '#ffffff', 'right');
+  drawDamageShare(ctx, view, b, x - 34 * u, y + 28 * u, w + 36 * u, u);
   const fever = feverMultiplier(b.boss.reign);
-  if (fever > 1) text(ctx, `GORĄCZKA +${Math.round((fever - 1) * 100)}%`, cam.w / 2, y + 36 * u, 11 * u, Math.floor(time * 4) % 2 ? '#ff8a3d' : '#ffd23f', 'center');
+  if (fever > 1 && b.team === undefined) text(ctx, `GORĄCZKA +${Math.round((fever - 1) * 100)}%`, x + w / 2, y + 58 * u, 11 * u, Math.floor(time * 4) % 2 ? '#ff8a3d' : '#ffd23f', 'center');
+}
+
+/**
+ * Procent obrażeń zadanych bossowi w tym panowaniu (kto ile % maks. HP). Lider — korona:
+ * to on przejmie koronę, gdy boss padnie.
+ */
+function drawDamageShare(ctx, view, b, x, y, w, u) {
+  const heroes = view.players
+    .filter((p) => !p.boss && !p.ai && p.dmgToBoss > 0 && (b.team === undefined || p.team !== b.team))
+    .sort((p, q) => q.dmgToBoss - p.dmgToBoss)
+    .slice(0, 6);
+  if (!heroes.length) return;
+  const chipW = Math.min(110 * u, w / heroes.length);
+  heroes.forEach((p, i) => {
+    const pct = Math.round((p.dmgToBoss / Math.max(1, b.boss.maxHp)) * 100);
+    const cx = x + i * chipW;
+    const lead = i === 0;
+    panel(ctx, cx + 1, y, chipW - 2, 16 * u, lead ? '#2b2348' : PANEL, lead ? CROWN : EDGE);
+    ctx.fillStyle = slotColor(p.slot);
+    ctx.fillRect(Math.round(cx + 4), Math.round(y + 4), 3 * u, 8 * u);
+    if (lead && b.team === undefined) icon(ctx, 'crown', cx + 6 + 3 * u, y + 2, u);
+    const lx = cx + 8 + 3 * u + (lead && b.team === undefined ? 13 * u : 0);
+    text(ctx, p.nick.slice(0, 8), lx, y + 12 * u, 9 * u, '#ffffff');
+    text(ctx, `${pct}%`, cx + chipW - 6, y + 12 * u, 10 * u, lead ? CROWN : '#cfd3ff', 'right');
+  });
 }
 
 function drawTimer(ctx, cam, view, u) {
@@ -296,6 +343,13 @@ function drawCase(ctx, cam, view, time, sound, u) {
 function drawModeInfo(ctx, cam, view, u) {
   const md = view.modeData;
   if (!md) return;
+  if (view.mode === 'teams') {
+    // pod paskami bossów i chipami procentów (te zajmują górę ekranu do ~82u)
+    panel(ctx, 8, 88 * u, 132 * u, 34 * u);
+    text(ctx, 'BITWA BOSSÓW', 16, 104 * u, 12 * u, '#ffd23f');
+    text(ctx, 'Chroń swojego bossa!', 16, 117 * u, 9 * u, '#b9b6e0');
+    return;
+  }
   const enemies = (md.queue?.length || 0) + (md.pending?.length || 0) + view.minions.length;
   const title = view.mode === 'survival' ? `FALA ${md.wave}` : `BOSS ${Math.min(md.total, md.defeated + 1)}/${md.total}`;
   const sub = view.mode === 'survival' ? (md.stage === 'fight' ? `wrogów: ${enemies}${md.bossWave ? ' + BOSS' : ''}` : 'przerwa') : `pokonani: ${md.defeated}`;

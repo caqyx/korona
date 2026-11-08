@@ -55,3 +55,20 @@ test('Klasyczny vs boty: losowa mapa, mecz startuje', async ({ page }) => {
   expect(st.aiLevel).toBe('hard');
   expect(errors).toEqual([]);
 });
+
+test('Bitwa bossów: dwie drużyny po jednym bossie, rola gracza = boss', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await openModes(page);
+  await page.click('[data-mode="teams"]');
+  await page.click('[data-tsize="3"]');
+  await page.click('[data-role="boss"]');
+  await page.click('#btn-mode-start');
+  await expect.poll(() => page.evaluate(() => window.__korona?.getState?.()?.mode ?? null)).toBe('teams');
+  const st = await page.evaluate(() => window.__korona.getState());
+  expect(st.players).toHaveLength(6);
+  expect(st.players.filter((p) => p.boss)).toHaveLength(2);
+  expect(st.players[0].boss).toBeTruthy(); // gracz wybrał rolę bossa
+  expect(new Set(st.players.filter((p) => p.boss).map((p) => p.team))).toEqual(new Set([0, 1]));
+  expect(errors).toEqual([]);
+});

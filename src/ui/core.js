@@ -75,7 +75,7 @@ export function createCore() {
     // gracz 1 (pierwszy slot, jeśli nie jest botem) dostaje swój wygląd z profilu (tylko odblokowane)
     if (slots[0] && slots[0].device !== 'bot') slots[0] = { ...slots[0], look: activeLookSync(slots[0].skin) };
     const level = opts.aiLevel || 'normal';
-    const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i, level), look: s.look }));
+    const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i, level), look: s.look, team: s.team, wantsBoss: s.wantsBoss }));
     touchRoot.classList.toggle('hidden', !slots.some((s) => s.device === 'touch'));
     // jeden człowiek na dotyku: kamera za graczem (na telefonie cała arena jest za mała)
   const humans = slots.filter((s) => s.device !== 'bot');

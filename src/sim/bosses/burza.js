@@ -33,10 +33,10 @@ export const burza = {
   r: {
     telegraph: (state, p, cast) => {
       const chain = [];
-      let cur = nearestHero(state, p.x, p.y, C.r.range);
+      let cur = nearestHero(state, p.x, p.y, C.r.range, [], p.team);
       while (cur && chain.length < C.r.jumps + 1) {
         chain.push(cur);
-        cur = nearestHero(state, cur.x, cur.y, C.r.jumpRadius * cast.area, chain.map((c) => c.id));
+        cur = nearestHero(state, cur.x, cur.y, C.r.jumpRadius * cast.area, chain.map((c) => c.id), p.team);
       }
       cast.data = { pts: chain.map((h) => [h.x, h.y]) };
       for (const h of chain) addZone(state, { kind: 'chain', shape: 'circle', ownerId: p.id, x: h.x, y: h.y, r: HERO.radius + 0.6, warn: C.r.telegraph, life: 0.08, dmg: 1 });
@@ -50,7 +50,7 @@ export const burza = {
     const ch = p.boss.channel;
     if (ch.kind !== 'vortex') return;
     for (const h of state.players) {
-      if (h.boss || !h.alive || h.dashT > 0) continue;
+      if (h.boss || !h.alive || h.dashT > 0 || (h.team !== undefined && h.team === p.team)) continue;
       const dx = p.x - h.x;
       const dy = p.y - h.y;
       const d = Math.hypot(dx, dy);

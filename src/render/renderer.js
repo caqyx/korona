@@ -14,6 +14,8 @@ import { PPM, getHeroSprite, getBossSprite, getMinionSprite, getTurretSprite, ge
 import { dither, fillCircle, strokeCircle, fillRing, fillEllipse, line, fillPolygon, strokePolygon, sectorPoints, linePoints, drawSprite } from './pixel.js';
 
 const RED = '#ff2848';
+/** Kolory drużyn (tryb Bitwa bossów). */
+export const TEAM_COLORS = ['#4f8bff', '#ff4f5e'];
 const RED_DARK = '#a3122e';
 const BOSS_R = HERO.radius * BOSS_COMMON.radiusMul;
 
@@ -304,8 +306,9 @@ function drawHero(g, cam, view, p, o, st) {
   const [x, y] = worldToArt(cam, p.x, p.y);
   // ukryty w krzakach: dla innych prawie niewidoczny (boss/AI go nie widzi), dla siebie półprzezroczysty
   if (p.hidden) {
-    const viewerIsBoss = view.players.some((v) => o.meIds.includes(v.id) && v.boss);
-    if (!o.meIds.includes(p.id) && viewerIsBoss) return;
+    const viewer = view.players.find((v) => o.meIds.includes(v.id));
+    const viewerIsEnemy = viewer && (p.team !== undefined ? viewer.team !== p.team : viewer.boss);
+    if (!o.meIds.includes(p.id) && viewerIsEnemy) return;
     g.globalAlpha = 0.55;
   }
   const color = slotColor(p.slot);
@@ -313,6 +316,11 @@ function drawHero(g, cam, view, p, o, st) {
   // cień + znacznik gracza pod stopami
   g.fillStyle = 'rgba(0,0,0,0.45)';
   fillEllipse(g, x, y + 3, 5, 2);
+  if (p.team !== undefined) {
+    // znacznik drużyny pod stopami
+    g.fillStyle = TEAM_COLORS[p.team];
+    strokeCircle(g, x, y + 3, 6);
+  }
   g.fillStyle = color;
   if (isMe) {
     g.fillRect(x - 6, y + 3, 2, 1);
@@ -376,6 +384,10 @@ function drawBoss(g, cam, view, p, o, st) {
   const invis = p.boss.invisT > 0;
   g.fillStyle = 'rgba(0,0,0,0.5)';
   fillEllipse(g, x, y + Math.round(BOSS_R * PPM * 0.7), Math.round(BOSS_R * PPM), Math.round(BOSS_R * PPM * 0.4));
+  if (p.team !== undefined) {
+    g.fillStyle = TEAM_COLORS[p.team];
+    strokeCircle(g, x, y + Math.round(BOSS_R * PPM * 0.7), Math.round(BOSS_R * PPM) + 2);
+  }
   if (invis) g.globalAlpha = isMe ? 0.45 : 0.1;
   // kanały
   const ch = p.boss.channel;

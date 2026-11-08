@@ -14,7 +14,9 @@ export function showSummary(state, o) {
   const md = state.modeData;
   const record = state.mode && state.mode !== 'crown' ? saveRecord(state) : false;
   $('#summary-title').textContent =
-    state.mode === 'survival'
+    state.mode === 'teams'
+      ? `Wygrywa drużyna ${state.winnerTeam === 1 ? 'Czerwona' : 'Niebieska'}!${state.endReason === 'time' ? ' (więcej HP bossa)' : ''}`
+      : state.mode === 'survival'
       ? `Przetrwaliście do fali ${md?.wave ?? 0}${record ? ' — nowy rekord!' : ''}`
       : state.mode === 'bossrush'
         ? state.endReason === 'victory'

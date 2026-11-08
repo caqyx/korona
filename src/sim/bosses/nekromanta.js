@@ -37,9 +37,9 @@ export const nekromanta = {
   /** Wysysanie: promień 2 s, 1 dmg/s, leczy bossa 4% max HP/s. */
   e: {
     telegraph: (state, p, cast) => {
-      const t = nearestHero(state, cast.ax, cast.ay, Infinity);
+      const t = nearestHero(state, cast.ax, cast.ay, Infinity, [], p.team);
       const ok = t && Math.hypot(t.x - p.x, t.y - p.y) <= C.e.range;
-      const target = ok ? t : nearestHero(state, p.x, p.y, C.e.range);
+      const target = ok ? t : nearestHero(state, p.x, p.y, C.e.range, [], p.team);
       cast.data = { targetId: target ? target.id : null };
       const ang = target ? Math.atan2(target.y - p.y, target.x - p.x) : aimAngle(p, cast);
       const len = target ? Math.hypot(target.x - p.x, target.y - p.y) : C.e.range;

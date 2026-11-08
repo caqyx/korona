@@ -12,7 +12,7 @@ export function createLocalGame(opts, onEnd) {
   const mapId = !opts.mapId || opts.mapId === 'random' ? MAP_IDS[opts.seed % MAP_IDS.length] : opts.mapId;
   const state = createMatchState({
     seed: opts.seed,
-    players: opts.slots.map((s) => ({ id: s.id, nick: s.nick, skin: s.skin, look: /** @type {any} */ (s).look })),
+    players: opts.slots.map((s) => ({ id: s.id, nick: s.nick, skin: s.skin, look: /** @type {any} */ (s).look, team: /** @type {any} */ (s).team, wantsBoss: /** @type {any} */ (s).wantsBoss })),
     targetScore: opts.targetScore,
     maxPlayers: MATCH.maxPlayersLocal,
     mode: opts.mode || 'crown',

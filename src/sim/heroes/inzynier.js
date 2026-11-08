@@ -2,6 +2,7 @@ import { SKINS } from '../config.js';
 import { nextId } from '../state.js';
 import { spawnProjectile } from '../projectiles.js';
 import { hitsPillar } from '../physics.js';
+import { enemyBosses } from '../combat.js';
 
 const A = SKINS.inzynier.ability;
 
@@ -28,13 +29,14 @@ export const inzynier = {
 
 /** @param {import('../state.js').MatchState} state @param {number} dt */
 export function updateTurrets(state, dt) {
-  const bossP = state.players.find((p) => p.boss && !p.boss.dying);
   const keep = [];
   for (const t of state.turrets) {
     t.life -= dt;
     if (t.life <= 0) continue;
     keep.push(t);
     t.cd -= dt;
+    const owner0 = state.players.find((p) => p.id === t.ownerId) || {};
+    const bossP = enemyBosses(state, owner0).sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y))[0];
     if (t.cd > 0 || !bossP) continue;
     const dx = bossP.x - t.x;
     const dy = bossP.y - t.y;

@@ -1,7 +1,7 @@
 import { distToSegment, angleDiff } from './vec.js';
 import { HERO } from './config.js';
 import { nextId } from './state.js';
-import { hurtHero, hurtBoss, damageMinion, bossRadius } from './combat.js';
+import { hurtHero, hurtBoss, damageMinion, bossRadius, sameTeam, canHitMinion, heroesHostile } from './combat.js';
 
 /**
  * Strefa z telegrafem. Najpierw `warn` sekund ostrzeżenia (czerwony kształt, brak efektu),
@@ -132,8 +132,10 @@ function applyZone(state, z, dt) {
     }
   }
   if (z.team === 'hero') return applyHeroZone(state, z, tickNow);
+  const owner = z.ownerId ? state.players.find((p) => p.id === z.ownerId) : null;
   for (const h of state.players) {
     if (h.boss || !h.alive) continue;
+    if (owner && sameTeam(owner, h)) continue;
     if (!zoneContains(z, h.x, h.y, HERO.radius)) continue;
     if (z.slow > 0) {
       h.slowT = 0.2;
@@ -173,8 +175,10 @@ function applyKnock(h, z) {
 /** Strefa umiejętności bohatera (Meteor, Korzenie): rani bossa i miniony, spowalnia bossa. */
 function applyHeroZone(state, z, tickNow) {
   const once = z.tick <= 0;
-  const bossP = state.players.find((p) => p.boss && !p.boss.dying);
-  if (bossP && zoneContains(z, bossP.x, bossP.y, bossRadius())) {
+  const owner = state.players.find((p) => p.id === z.ownerId) || { team: undefined };
+  for (const bossP of state.players) {
+    if (!bossP.boss || bossP.boss.dying || sameTeam(bossP, owner) || bossP.id === z.ownerId) continue;
+    if (!zoneContains(z, bossP.x, bossP.y, bossRadius())) continue;
     if (z.slow > 0) {
       bossP.slowT = Math.max(bossP.slowT, 0.2);
       bossP.slowMul = 1 - z.slow;
@@ -185,11 +189,20 @@ function applyHeroZone(state, z, tickNow) {
     }
   }
   for (const m of state.minions) {
-    if (m.hp <= 0 || !zoneContains(z, m.x, m.y, m.r)) continue;
+    if (m.hp <= 0 || !canHitMinion(state, owner, m) || !zoneContains(z, m.x, m.y, m.r)) continue;
     if (z.slow > 0) m.rootT = 0.2;
     if (z.dmg > 0 && (once ? !z.hit.includes(m.id) : tickNow)) {
       if (once) z.hit.push(m.id);
       damageMinion(state, m, z.dmg, z.ownerId);
     }
+  }
+  // drużyny: wrodzy bohaterowie — spowolnienie i 1 dmg raz na strefę
+  for (const h of state.players) {
+    if (h.boss || !h.alive || !heroesHostile(owner, h) || !zoneContains(z, h.x, h.y, HERO.radius)) continue;
+    if (z.slow > 0) {
+      h.slowT = Math.max(h.slowT, 0.2);
+      h.slowMul = 1 - z.slow;
+    }
+    if (z.dmg > 0 && !z.hit.includes(h.id) && hurtHero(state, h, 1, z.ownerId, z.x, z.y)) z.hit.push(h.id);
   }
 }

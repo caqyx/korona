@@ -17,6 +17,28 @@ export function feverMultiplier(reign) {
   return 1 + Math.min(FEVER.max, steps * FEVER.step);
 }
 
+/**
+ * Drużyny (tryb „teams”): gracze z tym samym `team` są sojusznikami. Bez drużyn (inne tryby)
+ * każdy boss jest wrogiem każdego bohatera, a bohaterowie nie ranią się nawzajem.
+ * @param {{team?:number}} a @param {{team?:number}} b
+ */
+export const sameTeam = (a, b) => a.team !== undefined && b.team !== undefined && a.team === b.team;
+
+/** Bossowie, których może ranić gracz `h` (wrodzy, żywi). @param {MatchState} state @param {Player} h */
+export const enemyBosses = (state, h) => state.players.filter((p) => p.boss && !p.boss.dying && p.id !== h.id && !sameTeam(p, h));
+
+/** Czy bohater `a` może ranić bohatera `b` (tylko drużyny przeciwne). */
+export const heroesHostile = (a, b) => a.team !== undefined && b.team !== undefined && a.team !== b.team;
+
+/** Właściciel miniona (boss) — miniony walczą po jego stronie. */
+const minionTeam = (state, m) => state.players.find((p) => p.id === m.ownerId)?.team;
+
+/** Czy gracz może ranić danego miniona. */
+export const canHitMinion = (state, h, m) => {
+  const t = minionTeam(state, m);
+  return t === undefined || h.team === undefined || t !== h.team;
+};
+
 /** Czy cel może otrzymać obrażenia jako bohater. @param {Player} h */
 export const heroVulnerable = (h) => h.alive && !h.boss && h.invulnT <= 0 && h.dashT <= 0 && h.connected;
 
@@ -38,6 +60,10 @@ export function shieldBlocks(h, fromX, fromY) {
  */
 export function hurtHero(state, h, dmg, sourceId, fromX, fromY) {
   if (!heroVulnerable(h)) return false;
+  if (sourceId) {
+    const srcP = state.players.find((p) => p.id === sourceId);
+    if (srcP && srcP !== h && sameTeam(srcP, h)) return false; // brak ognia sojuszniczego
+  }
   if (shieldBlocks(h, fromX, fromY)) {
     state.events.push({ t: 'block', id: h.id, x: h.x, y: h.y });
     return false;
@@ -106,16 +132,22 @@ export function inCone(ox, oy, ang, range, arcDeg, tx, ty, tr) {
 export function heroMelee(state, h, dmg, range, arc) {
   const ang = Math.atan2(h.fy, h.fx);
   let hit = false;
-  const bossP = state.players.find((p) => p.boss && !p.boss.dying);
-  if (bossP && inCone(h.x, h.y, ang, range, arc, bossP.x, bossP.y, bossRadius())) {
-    hurtBoss(state, bossP, dmg, h.id);
-    hit = true;
+  for (const bossP of enemyBosses(state, h)) {
+    if (inCone(h.x, h.y, ang, range, arc, bossP.x, bossP.y, bossRadius())) {
+      hurtBoss(state, bossP, dmg, h.id);
+      hit = true;
+    }
   }
   for (const m of state.minions) {
-    if (m.hp > 0 && inCone(h.x, h.y, ang, range, arc, m.x, m.y, m.r)) {
+    if (m.hp > 0 && canHitMinion(state, h, m) && inCone(h.x, h.y, ang, range, arc, m.x, m.y, m.r)) {
       damageMinion(state, m, dmg, h.id);
       hit = true;
     }
+  }
+  // drużyny: wrodzy bohaterowie dostają 1 dmg (mają 3 HP)
+  for (const o of state.players) {
+    if (o === h || o.boss || !heroesHostile(h, o)) continue;
+    if (inCone(h.x, h.y, ang, range, arc, o.x, o.y, HERO.radius) && hurtHero(state, o, 1, h.id, h.x, h.y)) hit = true;
   }
   state.events.push({ t: 'swing', id: h.id, x: h.x, y: h.y, a: ang, range, arc, hit });
   return hit;

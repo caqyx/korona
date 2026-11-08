@@ -1,5 +1,5 @@
 import { SKINS, HERO } from '../config.js';
-import { bossRadius } from '../combat.js';
+import { bossRadius, enemyBosses } from '../combat.js';
 import { resolveStatic } from '../physics.js';
 
 const A = SKINS.lotrzyk.ability;
@@ -8,7 +8,7 @@ const A = SKINS.lotrzyk.ability;
 export const lotrzyk = {
   /** @param {import('../state.js').MatchState} state @param {import('../state.js').Player} h */
   start(state, h) {
-    const bossP = state.players.find((p) => p.boss && !p.boss.dying);
+    const bossP = enemyBosses(state, h).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0];
     if (!bossP) return false;
     const d = Math.hypot(bossP.x - h.x, bossP.y - h.y) - bossRadius();
     if (d > A.range) return false;

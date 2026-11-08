@@ -33,14 +33,37 @@ function pickOffer(o, rng) {
 
 /** Cel bohatera-bota: boss, a gdy go nie ma — najbliższy minion (tryby z falami), potem korona. */
 function heroTarget(state, me) {
-  const bossP = state.players.find((p) => p.boss && !p.boss.dying);
-  if (bossP) return { x: bossP.x, y: bossP.y, r: bossRadius() };
-  let best = null;
+  // drużyny: wrogi bohater w pobliżu ma pierwszeństwo przed bossem
+  if (me.team !== undefined) {
+    let foe = null;
+    let fd = 5;
+    for (const o of state.players) {
+      if (o.boss || !o.alive || o.team === me.team || o.ai) continue;
+      const d = Math.hypot(o.x - me.x, o.y - me.y);
+      if (d < fd && !(o.hidden && d > 2.5)) {
+        fd = d;
+        foe = o;
+      }
+    }
+    if (foe) return { x: foe.x, y: foe.y, r: HERO.radius };
+  }
+  let bossP = null;
   let bd = Infinity;
-  for (const m of state.minions) {
-    const d = Math.hypot(m.x - me.x, m.y - me.y);
+  for (const p of state.players) {
+    if (!p.boss || p.boss.dying || p.id === me.id || (me.team !== undefined && p.team === me.team)) continue;
+    const d = Math.hypot(p.x - me.x, p.y - me.y);
     if (d < bd) {
       bd = d;
+      bossP = p;
+    }
+  }
+  if (bossP) return { x: bossP.x, y: bossP.y, r: bossRadius() };
+  let best = null;
+  let md = Infinity;
+  for (const m of state.minions) {
+    const d = Math.hypot(m.x - me.x, m.y - me.y);
+    if (d < md) {
+      md = d;
       best = m;
     }
   }
@@ -64,7 +87,7 @@ function heroBot(state, me, rng, L) {
     aimX = t.x + (rng.next() - 0.5) * 2 * L.aimErr;
     aimY = t.y + (rng.next() - 0.5) * 2 * L.aimErr;
     const radial = d > want + 0.3 ? 1 : d < want - 0.6 ? -1 : 0;
-    const strafe = (me.slot % 2 ? 1 : -1) * 0.7;
+    const strafe = (strafeSign(me.id) ? 1 : -1) * 0.7;
     mx = (dx / d) * radial + (-dy / d) * strafe;
     my = (dy / d) * radial + (dx / d) * strafe;
     if (d < want + range + 1 && rng.next() < L.attack) buttons |= BTN.ATTACK;
@@ -150,6 +173,7 @@ function bossBot(state, me, rng, L) {
   let bd = Infinity;
   for (const h of state.players) {
     if (h.boss || !h.alive || !h.connected || h.ai) continue;
+    if (me.team !== undefined && h.team === me.team) continue;
     const d = Math.hypot(h.x - me.x, h.y - me.y);
     if (h.hidden && d > 2.5) continue; // krzaki: boss nie widzi
     if (d < bd) {
@@ -179,4 +203,11 @@ function bossBot(state, me, rng, L) {
     aimY: target.y + (rng.next() - 0.5) * 2 * err,
     buttons,
   };
+}
+
+/** Kierunek okrążania celu zależny od id (nie od slotu — slot faworyzował jedną drużynę). */
+function strafeSign(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return (h >>> 3) % 2 === 0;
 }

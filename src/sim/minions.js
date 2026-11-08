@@ -7,6 +7,7 @@ import { addZone } from './zones.js';
 import { resolveStatic } from './physics.js';
 import { spawnProjectile } from './projectiles.js';
 import { nextId } from './state.js';
+import { sameTeam } from './combat.js';
 
 const RAD = Math.PI / 180;
 const NECRO = BOSSES.nekromanta.q;
@@ -15,8 +16,10 @@ const NECRO = BOSSES.nekromanta.q;
 function target(state, m) {
   let best = null;
   let bd = Infinity;
+  const owner = m.ownerId ? state.players.find((p) => p.id === m.ownerId) : null;
   for (const h of state.players) {
     if (h.boss || !h.alive || !h.connected || h.ai) continue;
+    if (owner && sameTeam(owner, h)) continue;
     const d = Math.hypot(h.x - m.x, h.y - m.y);
     if (h.hidden && d > 2.5) continue;
     if (d < bd) {

@@ -4,9 +4,10 @@
  *  - bossrush: 8 bossów (AI) po kolei, każdy silniejszy, losowanych skrzynką; ulepszenia między bossami.
  * Boss sterowany przez AI to gracz z flagą `ai` (id 'AI') — korzysta z tych samych kitów bossów.
  */
-import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, HERO, BOSS_COMMON } from './config.js';
+import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, HERO, BOSS_COMMON, BOSSES } from './config.js';
 import { createPlayer } from './state.js';
-import { startTransition, respawnHero, endMatch, leader, topDamageDealer } from './rules.js';
+import { startTransition, respawnHero, endMatch, leader, topDamageDealer, promoteToBoss, drawBossType } from './rules.js';
+import { makeRng } from './rng.js';
 import { spawnWaveMinion } from './minions.js';
 import { edgePoint } from './physics.js';
 import { addZone } from './zones.js';
@@ -19,6 +20,7 @@ export const heroesOf = (state) => state.players.filter((p) => !p.ai && p.connec
 /** Przygotowanie stanu trybu (wywoływane w createMatchState). @param {any} state */
 export function initMode(state) {
   if (state.mode === 'crown') return;
+  if (state.mode === 'teams') return initTeams(state);
   const ai = createPlayer(AI_ID, 'Boss', 'rycerz', state.players.length, state.mapId);
   ai.ai = true;
   ai.alive = false;
@@ -34,6 +36,7 @@ export function initMode(state) {
 /** Krok trybu (po aktualizacji świata). @param {any} state @param {number} dt @param {import('./rng.js').Rng} rng */
 export function modeStep(state, dt, rng) {
   if (state.phase !== 'playing' || !state.mode || state.mode === 'crown' || !state.modeData) return;
+  if (state.mode === 'teams') return teamsStep(state);
   if (state.mode === 'survival') survivalStep(state, dt, rng);
   else if (state.mode === 'bossrush') bossrushStep(state, dt, rng);
   checkWipe(state);
@@ -139,6 +142,7 @@ function bossrushStep(state, dt, rng) {
 
 /** Boss AI zginął. @param {any} state @param {any} bossP @param {string} killerId */
 export function onModeBossKilled(state, bossP, killerId) {
+  if (state.mode === 'teams') return teamsBossKilled(state, bossP, killerId);
   const md = state.modeData;
   const b = bossP.boss;
   b.dying = true;
@@ -197,6 +201,7 @@ export function scaleModeBoss(state, p) {
 
 /** Bohater zginął w trybie: Przetrwanie — czeka do przerwy; Boss Rush — odrodzenie po 5 s. */
 export function onModeHeroKilled(state, h) {
+  if (state.mode === 'teams') return;
   h.respawnT = state.mode === 'bossrush' ? MODES.bossrush.respawn : Infinity;
 }
 
@@ -255,3 +260,77 @@ export function applyUpgradeEffect(h, id) {
 }
 
 export { BOSS_IDS };
+
+// --- Bitwa bossów (drużyny) -------------------------------------------------
+
+/** Dwie drużyny, w każdej jeden boss (gracz z `wantsBoss` albo losowy), różne typy bossów. @param {any} state */
+function initTeams(state) {
+  const rng = makeRng(state.rng);
+  state.crown = { state: 'none', holderId: null, x: 0, y: 0 };
+  const bossIds = [null, null];
+  let lastType = null;
+  for (const team of [0, 1]) {
+    const members = state.players.filter((p) => p.team === team);
+    if (!members.length) continue;
+    const boss = members.find((p) => p.wantsBoss) || members[rng.int(members.length)];
+    const { type } = drawBossType(rng, lastType);
+    lastType = type;
+    promoteToBoss(state, boss, type);
+    const enemies = state.players.filter((p) => p.team !== team && p.connected).length - 1;
+    boss.boss.maxHp = Math.round(BOSS_COMMON.hpPerHero * Math.max(1, enemies) * MODES.teams.hpMul * (BOSSES[type]?.hpMul ?? 1));
+    boss.boss.hp = boss.boss.maxHp;
+    // drużyny startują po przeciwnych stronach areny, boss z tyłu swojej drużyny
+    const side = team === 0 ? -1 : 1;
+    boss.x = side * 9;
+    boss.y = 0;
+    members
+      .filter((m) => m !== boss)
+      .forEach((m, i, arr) => {
+        m.x = side * 5;
+        m.y = (i - (arr.length - 1) / 2) * 2.2;
+        m.fx = -side;
+        m.fy = 0;
+      });
+    bossIds[team] = boss.id;
+  }
+  state.modeData = { bossIds, names: MODES.teams.teamNames };
+}
+
+function teamsBossKilled(state, bossP, killerId) {
+  const b = bossP.boss;
+  b.dying = true;
+  b.cast = null;
+  b.channel = null;
+  const top = topDamageDealer(state, killerId);
+  if (top) {
+    top.score += 10;
+    top.lastHits += 1;
+    state.events.push({ t: 'lastHit', id: top.id, killer: killerId, pct: Math.round((top.dmgToBoss / Math.max(1, b.maxHp)) * 100), boss: bossP.id, bossType: b.type });
+  }
+  state.events.push({ t: 'bossDie', x: bossP.x, y: bossP.y, bossType: b.type });
+  const winnerTeam = bossP.team === 0 ? 1 : 0;
+  finishTeams(state, winnerTeam, 'boss');
+}
+
+function teamsStep(state) {
+  const md = state.modeData;
+  // boss rozłączony = jego drużyna przegrywa
+  for (const team of [0, 1]) {
+    const id = md.bossIds[team];
+    const p = id && state.players.find((x) => x.id === id);
+    if (id && (!p || !p.connected || !p.boss)) return finishTeams(state, team === 0 ? 1 : 0, 'forfeit');
+  }
+  if (state.matchTime >= state.timeLimit) {
+    const pct = (team) => {
+      const p = state.players.find((x) => x.id === md.bossIds[team]);
+      return p?.boss ? p.boss.hp / p.boss.maxHp : 0;
+    };
+    finishTeams(state, pct(1) > pct(0) ? 1 : 0, 'time');
+  }
+}
+
+function finishTeams(state, winnerTeam, reason) {
+  state.winnerTeam = winnerTeam;
+  const best = state.players.filter((p) => p.team === winnerTeam).sort((a, b) => b.score - a.score)[0];
+  endMatch(state, best?.id ?? null, reason);
+}

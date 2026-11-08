@@ -147,7 +147,7 @@ export function spawnPoint(i, mapId) {
  * @property {number} [countdown]
  * @property {number} [maxPlayers]
  * @property {string} [mapId]
- * @property {'crown'|'survival'|'bossrush'} [mode]
+ * @property {'crown'|'survival'|'bossrush'|'teams'} [mode]
  * @property {'easy'|'normal'|'hard'} [aiLevel]
  */
 
@@ -160,8 +160,12 @@ export function createMatchState(opts) {
 
 /** @param {MatchOptions} opts */
 function createBaseState(opts) {
-  const players = opts.players.slice(0, opts.maxPlayers ?? MATCH.maxPlayers).map((p, i) => {
+  const players = opts.players.slice(0, opts.maxPlayers ?? (opts.mode === 'teams' ? 10 : MATCH.maxPlayers)).map((p, i) => {
     const pl = createPlayer(p.id, p.nick, p.skin, i, opts.mapId ?? 'arena');
+    if (opts.mode === 'teams') {
+      pl.team = /** @type {any} */ (p).team === 1 ? 1 : 0;
+      pl.wantsBoss = !!(/** @type {any} */ (p).wantsBoss);
+    }
     pl.look = sanitizeLook(/** @type {any} */ (p).look, pl.skin);
     return pl;
   });

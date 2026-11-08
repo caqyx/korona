@@ -284,6 +284,7 @@ export const MODES = {
     bossScore: 15,
     waveClearScore: 5,
   },
+  teams: { name: 'Bitwa bossów', hpMul: 4.5, respawnSide: true, teamNames: ['Niebieska', 'Czerwona'] },
   bossrush: { name: 'Boss Rush', bosses: 8, hpGrowth: 0.3, cdShrink: 0.06, minCdMul: 0.6, respawn: 5, intermission: 12, killScore: 10 },
 };
 

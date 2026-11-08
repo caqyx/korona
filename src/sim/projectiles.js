@@ -1,7 +1,7 @@
 import { PROJECTILE_MAX, HERO } from './config.js';
 import { nextId } from './state.js';
 import { hitsPillar, outsideArena } from './physics.js';
-import { bossRadius, hurtBoss, hurtHero, damageMinion, shieldBlocks } from './combat.js';
+import { bossRadius, hurtBoss, hurtHero, damageMinion, shieldBlocks, sameTeam, canHitMinion, heroesHostile } from './combat.js';
 import { SKINS } from './config.js';
 
 /**
@@ -36,7 +36,7 @@ export function spawnProjectile(state, p) {
 /** @param {import('./state.js').MatchState} state @param {number} dt */
 export function updateProjectiles(state, dt) {
   const keep = [];
-  const bossP = state.players.find((p) => p.boss && !p.boss.dying) || null;
+  const bosses = state.players.filter((p) => p.boss && !p.boss.dying);
   for (const pr of state.projectiles) {
     pr.x += pr.vx * dt;
     pr.y += pr.vy * dt;
@@ -44,37 +44,53 @@ export function updateProjectiles(state, dt) {
     if (pr.boomerang && steerBack(state, pr)) continue;
     if (pr.traveled > pr.range || outsideArena(pr.x, pr.y, 0)) continue;
     if (!pr.pierce && hitsPillar(pr.x, pr.y, pr.r)) continue;
-    const alive = pr.team === 'hero' ? heroProjectileHits(state, pr, bossP) : bossProjectileHits(state, pr, bossP);
+    const owner = state.players.find((p) => p.id === pr.ownerId) || null;
+    const alive = pr.team === 'hero' ? heroProjectileHits(state, pr, bosses, owner) : bossProjectileHits(state, pr, bosses, owner);
     if (alive) keep.push(pr);
   }
   state.projectiles = keep;
 }
 
 /** @returns {boolean} czy pocisk leci dalej */
-function heroProjectileHits(state, pr, bossP) {
-  if (bossP && !pr.hit.includes(bossP.id) && Math.hypot(pr.x - bossP.x, pr.y - bossP.y) <= bossRadius() + pr.r) {
+function heroProjectileHits(state, pr, bosses, owner) {
+  for (const bossP of bosses) {
+    if (owner && (owner === bossP || sameTeam(owner, bossP))) continue;
+    if (pr.hit.includes(bossP.id) || Math.hypot(pr.x - bossP.x, pr.y - bossP.y) > bossRadius() + pr.r) continue;
     hurtBoss(state, bossP, pr.dmg, pr.ownerId);
     if (!pr.pierce) return false;
     pr.hit.push(bossP.id);
   }
   for (const m of state.minions) {
-    if (m.hp <= 0 || pr.hit.includes(m.id)) continue;
+    if (m.hp <= 0 || pr.hit.includes(m.id) || (owner && !canHitMinion(state, owner, m))) continue;
     if (Math.hypot(pr.x - m.x, pr.y - m.y) <= m.r + pr.r) {
       damageMinion(state, m, pr.dmg, pr.ownerId);
       if (!pr.pierce) return false;
       pr.hit.push(m.id);
     }
   }
+  if (owner) {
+    // drużyny: pocisk bohatera trafia wrogiego bohatera (1 dmg)
+    for (const o of state.players) {
+      if (o === owner || o.boss || !o.alive || pr.hit.includes(o.id) || !heroesHostile(owner, o)) continue;
+      if (Math.hypot(pr.x - o.x, pr.y - o.y) > HERO.radius + pr.r) continue;
+      if (hurtHero(state, o, 1, owner.id, pr.x - pr.vx, pr.y - pr.vy)) {
+        if (!pr.pierce) return false;
+        pr.hit.push(o.id);
+      }
+    }
+  }
   return true;
 }
 
 /** @returns {boolean} */
-function bossProjectileHits(state, pr, bossP) {
+function bossProjectileHits(state, pr, bosses, owner) {
   for (const h of state.players) {
     if (h.boss || !h.alive) continue;
+    if (owner && sameTeam(owner, h)) continue;
     if (Math.hypot(pr.x - h.x, pr.y - h.y) > HERO.radius + pr.r) continue;
-    if (shieldBlocks(h, pr.x - pr.vx, pr.y - pr.vy) && bossP) {
-      reflect(state, pr, h, bossP);
+    const target = owner?.boss ? owner : bosses.find((b) => !sameTeam(b, h));
+    if (shieldBlocks(h, pr.x - pr.vx, pr.y - pr.vy) && target) {
+      reflect(state, pr, h, target);
       return true;
     }
     if (pr.hit.includes(h.id)) continue;
@@ -85,26 +101,6 @@ function bossProjectileHits(state, pr, bossP) {
     }
   }
   return true;
-}
-
-/** Bumerang: po połowie zasięgu zawraca do właściciela. Zwraca true, gdy wrócił. */
-function steerBack(state, pr) {
-  if (!pr.back && pr.traveled >= pr.range / 2) {
-    pr.back = true;
-    pr.hit = [];
-  }
-  if (!pr.back) return false;
-  const owner = state.players.find((p) => p.id === pr.ownerId && p.boss);
-  if (!owner) return true;
-  const dx = owner.x - pr.x;
-  const dy = owner.y - pr.y;
-  const d = Math.hypot(dx, dy);
-  if (d < bossRadius()) return true;
-  const sp = Math.hypot(pr.vx, pr.vy);
-  pr.vx = (dx / d) * sp;
-  pr.vy = (dy / d) * sp;
-  pr.traveled = Math.min(pr.traveled, pr.range - 0.01);
-  return false;
 }
 
 /** Tarcza Rycerza odbija pocisk w bossa. */
@@ -123,4 +119,23 @@ function reflect(state, pr, knight, bossP) {
   pr.kind = 'reflected';
   pr.hit = [];
   state.events.push({ t: 'reflect', id: knight.id, x: pr.x, y: pr.y });
+}
+/** Bumerang: po połowie zasięgu zawraca do właściciela. Zwraca true, gdy wrócił. */
+function steerBack(state, pr) {
+  if (!pr.back && pr.traveled >= pr.range / 2) {
+    pr.back = true;
+    pr.hit = [];
+  }
+  if (!pr.back) return false;
+  const owner = state.players.find((p) => p.id === pr.ownerId && p.boss);
+  if (!owner) return true;
+  const dx = owner.x - pr.x;
+  const dy = owner.y - pr.y;
+  const d = Math.hypot(dx, dy);
+  if (d < bossRadius()) return true;
+  const sp = Math.hypot(pr.vx, pr.vy);
+  pr.vx = (dx / d) * sp;
+  pr.vy = (dy / d) * sp;
+  pr.traveled = Math.min(pr.traveled, pr.range - 0.01);
+  return false;
 }

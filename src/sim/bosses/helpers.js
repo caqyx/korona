@@ -23,11 +23,12 @@ export function aimAngle(p, cast) {
 }
 
 /** Najbliższy żywy bohater do punktu (opcjonalnie w zasięgu od (fx,fy)). */
-export function nearestHero(state, x, y, maxD = Infinity, exclude = []) {
+export function nearestHero(state, x, y, maxD = Infinity, exclude = [], team) {
   let best = null;
   let bd = maxD;
   for (const h of state.players) {
     if (h.boss || !h.alive || !h.connected || h.ai || exclude.includes(h.id)) continue;
+    if (team !== undefined && h.team === team) continue;
     if (h.hidden && Math.hypot(h.x - x, h.y - y) > 2.5) continue;
     const d = Math.hypot(h.x - x, h.y - y);
     if (d <= bd) {

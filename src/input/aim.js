@@ -6,6 +6,7 @@ export function autoAim(state, me) {
     let bd = Infinity;
     for (const h of state.players) {
       if (h.boss || !h.alive || h.ai) continue;
+      if (me.team !== undefined && h.team === me.team) continue;
       if (h.hidden && Math.hypot(h.x - me.x, h.y - me.y) > 2.5) continue;
       const d = Math.hypot(h.x - me.x, h.y - me.y);
       if (d < bd) {
@@ -15,7 +16,7 @@ export function autoAim(state, me) {
     }
     return best ? [best.x, best.y] : [me.x + me.fx, me.y + me.fy];
   }
-  const boss = state.players.find((p) => p.boss && !p.boss.dying);
+  const boss = state.players.find((p) => p.boss && !p.boss.dying && p.id !== me.id && (me.team === undefined || p.team !== me.team));
   let tx = boss ? boss.x : state.crown.x;
   let ty = boss ? boss.y : state.crown.y;
   let bd = boss ? Math.hypot(tx - me.x, ty - me.y) : Infinity;

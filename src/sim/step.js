@@ -74,7 +74,11 @@ function aiRng(state) {
 }
 
 function updatePlayers(state, inputsByPlayer, dt, rng) {
-  for (const p of state.players) {
+  // kolejność aktualizacji rotuje co krok — nikt nie ma stałej przewagi „pierwszego ruchu”
+  const n = state.players.length;
+  const start = n ? state.tick % n : 0;
+  for (let k = 0; k < n; k++) {
+    const p = state.players[(start + k) % n];
     if (!p.connected) continue;
     const input = p.ai ? botInput(state, p.id, aiRng(state), state.aiLevel) : inputsByPlayer[p.id] || emptyInput();
     const buttons = input.buttons | 0;
@@ -87,15 +91,16 @@ function updatePlayers(state, inputsByPlayer, dt, rng) {
 }
 
 function resolveBodies(state) {
-  const bossP = state.players.find((p) => p.boss);
+  const bosses = state.players.filter((p) => p.boss && !p.boss.dying);
   for (const p of state.players) {
     if (!p.alive || !p.connected) continue;
     resolveStatic(p, p.boss ? bossRadius() : HERO.radius);
   }
-  if (!bossP || bossP.boss.dying) return;
-  for (const h of state.players) {
-    if (h.boss || !h.alive) continue;
-    if (pushOut(h, HERO.radius, bossP, bossRadius())) resolveStatic(h, HERO.radius);
+  for (const bossP of bosses) {
+    for (const h of state.players) {
+      if (h.boss || !h.alive) continue;
+      if (pushOut(h, HERO.radius, bossP, bossRadius())) resolveStatic(h, HERO.radius);
+    }
   }
 }
 
