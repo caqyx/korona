@@ -10,7 +10,9 @@ export default defineConfig({
   build: { target: 'es2022' },
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': nowa wersja czeka na następne uruchomienie (lub przycisk „Aktualizuj”) zamiast
+      // przeładowywać otwartą aplikację — patrz src/ui/pwa.js
+      registerType: 'prompt',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
       manifestFilename: 'manifest.webmanifest',
       manifest: {
@@ -30,7 +32,12 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        // woff2 w precache: bez tego czcionka szła z sieci przy każdym starcie (a offline nie było jej wcale)
+        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'],
+        // pierwsza instalacja przejmuje stronę od razu (tryb offline działa bez ponownego otwarcia);
+        // aktualizacja NIE przejmuje — czeka (skipWaiting dopiero na żądanie)
+        clientsClaim: true,
+        skipWaiting: false,
         navigateFallback: `${base}index.html`,
       },
     }),

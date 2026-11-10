@@ -26,7 +26,13 @@ test('PWA: manifest, brak błędów instalowalności, tryb lokalny działa offli
 
   // offline: przeładowanie z cache i gra lokalna botów
   await ctx.setOffline(true);
+  const failed = [];
+  page.on('requestfailed', (r) => failed.push(r.url()));
   await page.reload();
+  // czcionka interfejsu jest w precache: offline wczytuje się z cache, żadne żądanie startowe nie pada
+  await page.evaluate(() => document.fonts.ready);
+  expect(await page.evaluate(() => document.fonts.check('16px "Pixelify Sans"'))).toBe(true);
+  expect(failed).toEqual([]);
   await page.click('#btn-local');
   await page.click('#btn-mode-custom');
   await page.selectOption('select[data-i="0"][data-k="device"]', 'bot');
@@ -37,4 +43,13 @@ test('PWA: manifest, brak błędów instalowalności, tryb lokalny działa offli
   expect(await page.evaluate(() => window.__korona.getState().tick)).toBeGreaterThan(t);
   expect(errors).toEqual([]);
   await ctx.close();
+});
+
+test('PWA: nowa wersja nie przejmuje otwartej aplikacji sama (bez wymuszonego przeładowania po starcie)', async ({ request }) => {
+  // autoUpdate generował `self.skipWaiting()` na starcie SW i przeładowywał stronę kilka sekund po otwarciu;
+  // teraz SW czeka na komunikat SKIP_WAITING (przycisk „Aktualizuj”) albo na następne uruchomienie
+  const sw = await (await request.get('/sw.js')).text();
+  expect(sw).toContain('SKIP_WAITING');
+  expect(sw).not.toMatch(/self\.skipWaiting\(\),/);
+  expect(sw).toContain('.woff2');
 });

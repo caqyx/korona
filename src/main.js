@@ -20,7 +20,7 @@ nickInput.addEventListener('change', () => {
 });
 const online = hasSupabaseConfig() && params.get('transport') !== 'local';
 $('#transport-info').textContent = online ? 'Online przez Supabase Realtime + WebRTC' : 'Online przez transport lokalny (karty tej przeglądarki)';
-setupPwa($('#btn-install'));
+setupPwa($('#btn-install'), $('#btn-update'));
 
 /** @type {Promise<ReturnType<typeof import('./ui/core.js').createCore>>|null} */
 let corePromise = null;
