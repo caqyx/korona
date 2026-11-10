@@ -6,7 +6,7 @@ import { enemyBosses } from '../combat.js';
 
 const A = SKINS.inzynier.ability;
 
-/** Wieżyczka: 6 s, strzela w bossa po 4 dmg. Ostatni cios wieżyczki = cios Inżyniera. */
+/** Wieżyczka: stoi ability.life s i strzela w bossa (ability.dmg); jej obrażenia liczą się Inżynierowi. */
 export const inzynier = {
   /** @param {import('../state.js').MatchState} state @param {import('../state.js').Player} h */
   start(state, h) {

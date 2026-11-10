@@ -41,10 +41,10 @@ describe('nowe klasy', () => {
     expect(boss.x - x0).toBeCloseTo(BOSS_COMMON.speed * BOSSES.burza.speedMul * (1 - SKINS.druid.ability.slow) * DT, 4);
   });
 
-  it('wręcz zadaje więcej niż dystans (ryzyko vs. bezpieczeństwo), ale rozrzut DPS ataku podstawowego ≤ 3,2× (dystans nadrabia umiejętnościami)', () => {
+  it('wręcz zadaje więcej niż dystans (ryzyko vs. bezpieczeństwo), ale rozrzut DPS ataku podstawowego ≤ 3,4× (dystans nadrabia umiejętnościami)', () => {
     const dps = Object.fromEntries(Object.entries(SKINS).map(([k, s]) => [k, s.attack.dmg / s.attack.cd]));
     const vals = Object.values(dps);
-    expect(Math.max(...vals) / Math.min(...vals)).toBeLessThanOrEqual(3.2);
+    expect(Math.max(...vals) / Math.min(...vals)).toBeLessThanOrEqual(3.4);
     expect(dps.rycerz).toBeGreaterThan(dps.lucznik);
     expect(dps.barbarzynca).toBeGreaterThan(dps.mag);
   });

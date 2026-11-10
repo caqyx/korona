@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { createPlayers, createRoomAndJoin, pickSkinsAndStart } from './fixtures.js';
+import { createPlayers, createRoomAndJoin, pickSkinsAndStart, closePlayersAfterEach } from './fixtures.js';
+
+closePlayersAfterEach(test);
 
 test('mecz botów kończy się zwycięzcą przy 100 pkt bez błędów w konsoli', async ({ browser }) => {
   test.setTimeout(240_000);

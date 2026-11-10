@@ -1,6 +1,6 @@
 # KORONA
 
-Arena PvP 2D top-down dla 2–6 graczy w przeglądarce (PWA). Na arenie jest jeden boss — kto zada mu ostatni cios, przejmuje koronę i sam staje się bossem. Pełny projekt: [`GDD.md`](GDD.md).
+Arena PvP 2D top-down dla 2–6 graczy w przeglądarce (PWA). Na arenie jest jeden boss — kto zada mu najwięcej obrażeń, przejmuje koronę i sam staje się bossem. Pełny projekt: [`GDD.md`](GDD.md).
 
 ## Uruchomienie
 

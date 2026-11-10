@@ -37,6 +37,12 @@ export function installKeyboard(target) {
   target.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
+/** Czyści zatrzaśnięte wciśnięcia (po pauzie/menu, żeby nie odpaliły akcji po powrocie do gry). */
+export function clearLatchedInput() {
+  pressedKeys.clear();
+  mouse.pressed = 0;
+}
+
 const KB1 = { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', dash: 'Space', ability: 'KeyF', attack: null, q: 'KeyQ', e: 'KeyE', r: 'KeyR' };
 const KB2 = { up: 'KeyI', down: 'KeyK', left: 'KeyJ', right: 'KeyL', dash: 'KeyP', ability: 'KeyO', attack: 'KeyU', q: 'Digit7', e: 'Digit8', r: 'Digit9' };
 

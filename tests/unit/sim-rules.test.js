@@ -4,7 +4,7 @@ import { spawnPoint, createMatchState } from '../../src/sim/state.js';
 import { promoteToBoss, drawBossType, bindRng, bossMaxHp } from '../../src/sim/rules.js';
 import { hurtBoss, hurtHero, feverMultiplier } from '../../src/sim/combat.js';
 import { makeRng } from '../../src/sim/rng.js';
-import { DT, MATCH, SCORE, BOSS_COMMON, BOSSES, BOSS_IDS, FEVER, CASE, RARITY } from '../../src/sim/config.js';
+import { DT, MATCH, SCORE, BOSS_COMMON, BOSSES, BOSS_IDS, FEVER, CASE, RARITY, heroBaseHp } from '../../src/sim/config.js';
 import { makeMatch, bossArena, run, inp, BTN } from './sim-helpers.js';
 
 const isSpawnPoint = (x, y) => Array.from({ length: MATCH.spawnCount }, (_, i) => spawnPoint(i)).some(([sx, sy]) => Math.abs(sx - x) < 1e-6 && Math.abs(sy - y) < 1e-6);
@@ -69,7 +69,7 @@ describe('crown pickup at center', () => {
     expect(a.score).toBe(0);
   });
 
-  it('boss maxHp = 120 x heroes x hpMul for every type', () => {
+  it('boss maxHp = hpPerHero (140) x heroes x hpMul for every type', () => {
     for (const type of BOSS_IDS) {
       const state = makeMatch([{ id: 'A' }, { id: 'B' }, { id: 'C' }, { id: 'D' }, { id: 'E' }]);
       promoteToBoss(state, state.players[0], type);
@@ -104,13 +104,13 @@ describe('boss kill / crown takeover', () => {
     expect(x.boss.hp).toBe(x.boss.maxHp);
     expect(boss.boss).toBe(null);
     expect(boss.alive).toBe(true);
-    expect(boss.hp).toBe(3);
+    expect(boss.hp).toBe(heroBaseHp(boss.skin));
     expect(boss.invulnT).toBeCloseTo(2, 9);
     expect(isSpawnPoint(boss.x, boss.y)).toBe(true);
     expect(state.crown.holderId).toBe('X');
   });
 
-  it('korona dla najwięcej obrażeń: 30% dostaje koronę i +10, ≥25% asysta +2, mniej — nic, zabójca bez obrażeń — nic', () => {
+  it('korona dla najwięcej obrażeń: 30% dostaje koronę i +10, próg asysty (4 bohaterów: 18,75%) +2, mniej — nic, zabójca bez obrażeń — nic', () => {
     const { state, boss, heroes } = bossArena('burza', [
       { id: 'X', skin: 'rycerz', x: -1.7, y: 0 },
       { id: 'A', x: 0, y: 10 },
@@ -120,10 +120,13 @@ describe('boss kill / crown takeover', () => {
     const [killer, a, low, exact] = heroes;
     const max = boss.boss.maxHp;
     expect(max).toBe(BOSS_COMMON.hpPerHero * 4);
+    // 4 bohaterów: próg asysty = min(assistThreshold, assistPool / 4) = 18,75% (przy ≤3 bohaterach nadal 25%)
+    const share = Math.min(SCORE.assistThreshold, SCORE.assistPool / 4);
+    expect(share).toBeCloseTo(0.1875, 12);
     withRng(state, () => {
       hurtBoss(state, boss, 0.3 * max, 'A');
-      hurtBoss(state, boss, 0.25 * max - 1, 'L');
-      hurtBoss(state, boss, 0.25 * max, 'T');
+      hurtBoss(state, boss, share * max - 1, 'L');
+      hurtBoss(state, boss, share * max, 'T');
     });
     boss.boss.hp = 5;
     step(state, { X: inp({ buttons: BTN.ATTACK }) });
@@ -170,7 +173,7 @@ describe('scoring', () => {
     expect(boss.crownTime).toBeCloseTo((10 * iv + 1) * DT, 9);
   });
 
-  it('+3 for the boss killing a hero', () => {
+  it('+bossKillsHero (2) for the boss killing a hero', () => {
     const { state, boss, heroes } = bossArena('kolos', [{ id: 'H', x: 3, y: 0 }]);
     const h = heroes[0];
     h.hp = 1;
@@ -305,7 +308,7 @@ describe('drawBossType', () => {
 });
 
 describe('boss HP scales with player count (local mode up to 8)', () => {
-  it('HP = 120 × heroes × hpMul for 2..8 players', () => {
+  it('HP = hpPerHero (140) × heroes × hpMul for 2..8 players', () => {
     for (let n = 2; n <= MATCH.maxPlayersLocal; n++) {
       const players = Array.from({ length: n }, (_, i) => ({ id: `p${i}`, nick: `p${i}`, skin: 'rycerz' }));
       const state = createMatchState({ seed: 1, players, countdown: 0, maxPlayers: MATCH.maxPlayersLocal });

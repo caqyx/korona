@@ -21,13 +21,14 @@ function activeLookSync(skin) {
 }
 import { showAchievementToast } from './toast.js';
 import { showSummary } from './summary.js';
-import { installKeyboard, createKeyboardMouse, createKeyboard2 } from '../input/keyboard.js';
+import { installKeyboard, createKeyboardMouse, createKeyboard2, clearLatchedInput } from '../input/keyboard.js';
 import { createGamepad } from '../input/gamepad.js';
 import { createTouch, isTouchDevice } from '../input/touch.js';
 import { createBotDevice } from '../input/bot.js';
 import { unlockAudio } from '../audio/sfx.js';
 import { keepAwake } from './pwa.js';
 import { startOnlineUi } from './onlineUi.js';
+import { openMatchMenu, closeMatchMenu, resumeMatchMenu, isMatchMenuOpen } from './pauseMenu.js';
 
 /**
  * Rdzeń gry ładowany leniwie (dopiero po kliknięciu w menu): renderer, symulacja,
@@ -44,7 +45,7 @@ export function createCore() {
   let touchDevice = /** @type {any} */ (null);
   const getTouch = () => {
     if (!touchDevice) {
-      touchDevice = createTouch(touchRoot);
+      touchDevice = createTouch(touchRoot, { onPause: () => toggleMatchMenu() });
       gameView.aimSource = (me) => touchDevice.aimPreview(me);
     }
     return touchDevice;
@@ -62,7 +63,13 @@ export function createCore() {
     return createBotDevice(1000 + i * 77, level);
   }
 
+  /** Trwający mecz lokalny (null poza meczem). @type {ReturnType<typeof createLocalGame>|null} */
+  let localGame = null;
+
   function backToMenu() {
+    localGame?.stop();
+    localGame = null;
+    closeMatchMenu();
     gameView.setSource(null);
     touchRoot.classList.add('hidden');
     setOverlay(null);
@@ -77,18 +84,24 @@ export function createCore() {
     const level = opts.aiLevel || 'normal';
     const players = slots.map((s, i) => ({ id: `L${i + 1}`, nick: s.nick || `Gracz ${i + 1}`, skin: s.skin, device: makeDevice(s.device, i, level), look: s.look, team: s.team, wantsBoss: s.wantsBoss }));
     touchRoot.classList.toggle('hidden', !slots.some((s) => s.device === 'touch'));
-    // jeden człowiek na dotyku: kamera za graczem (na telefonie cała arena jest za mała)
-  const humans = slots.filter((s) => s.device !== 'bot');
-  gameView.cam.mode = humans.length === 1 && humans[0].device === 'touch' ? 'follow' : 'fit';
+    // jeden człowiek: kamera za graczem (szerszy widok niż online); wspólny ekran i same boty: cała arena
+    const humans = slots.filter((s) => s.device !== 'bot');
+    const solo = humans.length === 1;
+    if (touchDevice) touchDevice.setTapCards(solo);
+    gameView.setCamera({ local: true, solo, device: solo ? players.find((p) => p.device.kind !== 'bot')?.device.kind : null });
     const target = Number(params.get('target')) || undefined;
     const game = createLocalGame({ slots: players, seed: (Date.now() & 0xffffffff) >>> 0, targetScore: target, speed: Number(params.get('speed')) || 1, mode: /** @type {any} */ (opts.mode), mapId: opts.mapId, aiLevel: /** @type {any} */ (level) }, (finalState) => {
+      // mecz skończony: Esc / przycisk pauzy nie mają już czego pauzować (podsumowanie ma własne przyciski)
+      if (localGame === game) localGame = null;
+      closeMatchMenu();
       touchRoot.classList.add('hidden');
       keepAwake(false);
       const unlocked = recordMatch(finalState, 'L1');
       showSummary(finalState, { canRematch: true, onRematch: () => startLocal(slots, opts), onBack: backToMenu });
       if (unlocked.length) showAchievementToast(unlocked);
     });
-    window.__korona = { mode: 'local', getState: () => game.state };
+    localGame = game;
+    window.__korona = { mode: 'local', getState: () => game.state, togglePause: () => toggleMatchMenu(), isPaused: () => game.isPaused() };
     gameView.setSource(game);
     showScreen(null);
     keepAwake(true);
@@ -104,8 +117,53 @@ export function createCore() {
       onBack: backToMenu,
     });
   }
+
+  /** Pauza meczu lokalnego: zatrzymuje symulację i pokazuje menu (Wznów / Sterowanie / Wyjdź). */
+  function pauseLocal() {
+    const game = localGame;
+    if (!game || game.isEnded() || isMatchMenuOpen()) return;
+    game.setPaused(true);
+    openMatchMenu({
+      title: 'Pauza',
+      resumeLabel: 'Wznów',
+      leaveLabel: 'Wyjdź do menu',
+      onResume: () => {
+        clearLatchedInput(); // klawisze wciśnięte w menu nie mogą odpalić dasha po wznowieniu
+        game.setPaused(false);
+      },
+      onLeave: backToMenu,
+    });
+  }
+
+  /** Mecz online nie ma pauzy (host jest autorytatywny) — menu daje tylko wyjście z meczu. */
+  function openOnlineMenu() {
+    if (isMatchMenuOpen()) return;
+    openMatchMenu({
+      title: 'Menu meczu',
+      note: 'Mecz online trwa dalej — nie można go zatrzymać.',
+      resumeLabel: 'Wróć do gry',
+      leaveLabel: 'Wyjdź z meczu',
+      onResume: clearLatchedInput,
+      onLeave: () => online.leave(),
+    });
+  }
+
+  /** Esc / przycisk pauzy: otwiera albo zamyka menu trwającego meczu. */
+  function toggleMatchMenu() {
+    if (isMatchMenuOpen()) return resumeMatchMenu();
+    if (localGame) pauseLocal();
+    else if (online.inMatch()) openOnlineMenu();
+  }
+
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape' && window.__korona?.mode === 'local') window.__korona.togglePause?.();
+    if (e.code !== 'Escape' || e.repeat) return;
+    if (!localGame && !online.inMatch()) return;
+    e.preventDefault();
+    toggleMatchMenu();
+  });
+  // karta/aplikacja w tle: mecz lokalny pauzuje się sam (online gra dalej — host jest autorytatywny)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') pauseLocal();
   });
 
   const online = startOnlineUi({
@@ -115,6 +173,7 @@ export function createCore() {
     getTouch,
     params,
     backToMenu,
+    onMatchMenuClose: closeMatchMenu,
     onMatchRecorded: (state, meId, o) => {
       const unlocked = recordMatch(state, meId, o);
       if (unlocked.length) showAchievementToast(unlocked);

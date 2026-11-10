@@ -63,11 +63,11 @@ describe('mapy', () => {
     const z = MAPS.wulkan.hazards[0];
     const st = onMap('wulkan', z.x, z.y);
     for (let i = 0; i < 60; i++) step(st, {}); // pierwszy tick po 0,4 s, kolejne co 1 s
-    expect(st.players[0].hp).toBe(HERO.hp - 1);
+    expect(st.players[0].hp).toBe(st.players[0].maxHp - 1);
     const st2 = onMap('wulkan', z.x, z.y);
     st2.players[0].dashT = 10;
     for (let i = 0; i < 60; i++) step(st2, {});
-    expect(st2.players[0].hp).toBe(HERO.hp);
+    expect(st2.players[0].hp).toBe(st2.players[0].maxHp);
     expect(HAZARD.lava.dmg).toBe(1);
   });
 

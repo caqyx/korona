@@ -8,6 +8,7 @@ import {
   shouldPlannedMigrate,
   createStepMonitor,
   hostLost,
+  unplannedAction,
   runBenchmark,
   median,
   MIGRATION,
@@ -260,5 +261,23 @@ describe('runBenchmark / median', () => {
   });
   it('zerowy czas -> minimum 0.001', () => {
     expect(runBenchmark(() => {}, () => ({}), () => 0, 10)).toBe(0.001);
+  });
+});
+
+describe('unplannedAction (fałszywy alarm utraty hosta)', () => {
+  const base = { lost: null, migrating: false, pendingLoss: null, hostId: 'h1' };
+  it('host jest i nic się nie dzieje → brak akcji', () => {
+    expect(unplannedAction(base)).toBeNull();
+  });
+  it('host zniknął → start migracji, ale tylko raz', () => {
+    expect(unplannedAction({ ...base, lost: 'timeout' })).toBe('begin');
+    expect(unplannedAction({ ...base, lost: 'timeout', migrating: true, pendingLoss: 'h1' })).toBeNull();
+  });
+  it('host wrócił, zanim ktokolwiek przejął rolę → odwołanie', () => {
+    expect(unplannedAction({ ...base, migrating: true, pendingLoss: 'h1' })).toBe('cancel');
+  });
+  it('nie odwołuje migracji po przyjęciu claimu ani planowanej (brak oczekującej utraty / inny host)', () => {
+    expect(unplannedAction({ ...base, migrating: true, pendingLoss: null })).toBeNull();
+    expect(unplannedAction({ ...base, migrating: true, pendingLoss: 'h1', hostId: 'h2' })).toBeNull();
   });
 });

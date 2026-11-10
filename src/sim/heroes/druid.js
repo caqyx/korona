@@ -4,7 +4,7 @@ import { aimPoint } from './mag.js';
 
 const A = SKINS.druid.ability;
 
-/** Korzenie: strefa 2,2 m na 3 s — spowalnia bossa o 45%, unieruchamia miniony, 3 obrażenia co 0,5 s. */
+/** Korzenie: strefa 2,2 m na 3 s — spowalnia bossa o 45%, unieruchamia miniony, ability.dmg obrażeń co 0,5 s. */
 export const druid = {
   /** @param {any} state @param {any} h @param {any} input */
   start(state, h, input) {

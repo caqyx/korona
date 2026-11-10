@@ -4,7 +4,7 @@
  */
 import { $, esc } from './dom.js';
 import { SKINS } from '../sim/config.js';
-import { SKIN_TEXT } from './codex.js';
+import { SKIN_TEXT, roleLine } from './codex.js';
 import { heroPreview, mount } from './previews.js';
 import { getProfile, onProfileChange, getActiveLook } from './profile.js';
 
@@ -30,6 +30,6 @@ function render(skin) {
     .catch(() => null)
     .then((look) => token === renderId && mount($('#class-pv'), heroPreview(skin, s.color, { w: 120, h: 104, maxScale: 5, look })));
   $('#class-name').textContent = s.name;
-  $('#class-role').textContent = t.role;
+  $('#class-role').textContent = roleLine(SKIN_TEXT[skin] ? skin : 'rycerz');
   $('#class-abil').innerHTML = `<b>${esc(t.ability)}</b> <span class="cd">${t.cd} s</span><br>${esc(t.abilityDesc)}`;
 }

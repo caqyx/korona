@@ -4,13 +4,16 @@
  */
 import { HERO, BOSSES, MINIONS } from './config.js';
 import { addZone } from './zones.js';
-import { resolveStatic } from './physics.js';
+import { resolveStatic, obstacleOnSegment } from './physics.js';
 import { spawnProjectile } from './projectiles.js';
 import { nextId } from './state.js';
 import { sameTeam } from './combat.js';
+import { HAZARD } from './maps.js';
 
 const RAD = Math.PI / 180;
 const NECRO = BOSSES.nekromanta.q;
+/** promień strzały łucznika (pocisk i sprawdzenie linii strzału) */
+const ARROW_R = 0.18;
 
 /** Najbliższy cel-bohater (ukryci w krzakach widoczni tylko z bliska). */
 function target(state, m) {
@@ -21,7 +24,7 @@ function target(state, m) {
     if (h.boss || !h.alive || !h.connected || h.ai) continue;
     if (owner && sameTeam(owner, h)) continue;
     const d = Math.hypot(h.x - m.x, h.y - m.y);
-    if (h.hidden && d > 2.5) continue;
+    if (h.hidden && d > HAZARD.bush.bossSeeRange) continue;
     if (d < bd) {
       bd = d;
       best = h;
@@ -59,7 +62,7 @@ export function updateMinions(state, dt) {
     const d = Math.hypot(dx, dy) || 1;
     m.fx = dx / d;
     m.fy = dy / d;
-    if (m.kind === 'archer') archer(state, m, d, dt);
+    if (m.kind === 'archer') archer(state, m, h, d, dt);
     else melee(state, m, d, dx, dy, dt);
   }
 }
@@ -85,11 +88,25 @@ function melee(state, m, d, dx, dy, dt) {
   m.cd = m.atkCd ?? NECRO.atkCd;
 }
 
-function archer(state, m, d, dt) {
+/** Krok w bok (prostopadle do kierunku na cel), na stronę przeciwną do przeszkody zasłaniającej strzał. */
+function sidestep(m, o, dt) {
+  if (m.rootT > 0) return;
+  const left = m.fx * (o.y - m.y) - m.fy * (o.x - m.x) > 0; // przeszkoda po lewej stronie linii strzału
+  const s = left ? -1 : 1;
+  m.x += -m.fy * s * m.speed * dt;
+  m.y += m.fx * s * m.speed * dt;
+  resolveStatic(m, m.r);
+}
+
+function archer(state, m, h, d, dt) {
   const c = MINIONS.archer;
   if (d > c.atkRange) step(m, 1, dt);
   else if (d < c.keep - 1) step(m, -0.8, dt);
-  if (m.cd > 0 || d > c.atkRange + 0.5) return;
+  if (d > c.atkRange + 0.5) return;
+  // filar na linii strzału: zamiast strzelać w niego bez końca, łucznik obchodzi go bokiem
+  const o = obstacleOnSegment(m.x, m.y, h.x, h.y, ARROW_R);
+  if (o) return sidestep(m, o, dt);
+  if (m.cd > 0) return;
   const ang = Math.atan2(m.fy, m.fx);
   addZone(state, { kind: 'aimLine', shape: 'line', ownerId: m.ownerId, x: m.x, y: m.y, ang, len: c.atkRange, w: 0.4, warn: c.atkTelegraph, life: 0, dmg: 0 });
   m.shot = { ang };
@@ -101,5 +118,5 @@ function fireShot(state, m) {
   const c = MINIONS.archer;
   const a = m.shot.ang;
   m.shot = null;
-  spawnProjectile(state, { team: 'boss', ownerId: m.ownerId || '', kind: 'bonearrow', x: m.x + Math.cos(a) * 0.5, y: m.y + Math.sin(a) * 0.5, vx: Math.cos(a) * c.shotSpeed, vy: Math.sin(a) * c.shotSpeed, r: 0.18, range: c.atkRange + 2, dmg: 1 });
+  spawnProjectile(state, { team: 'boss', ownerId: m.ownerId || '', kind: 'bonearrow', x: m.x + Math.cos(a) * 0.5, y: m.y + Math.sin(a) * 0.5, vx: Math.cos(a) * c.shotSpeed, vy: Math.sin(a) * c.shotSpeed, r: ARROW_R, range: c.atkRange + 2, dmg: 1 });
 }

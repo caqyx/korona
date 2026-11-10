@@ -3,7 +3,7 @@ import { SKINS, SKIN_IDS, MATCH, BOSS_COMMON, AI_LEVELS } from '../sim/config.js
 import { MAPS, MAP_IDS } from '../sim/maps.js';
 import { slotColor } from '../render/palette.js';
 import { connectedPads } from '../input/gamepad.js';
-import { SKIN_TEXT } from './codex.js';
+import { SKIN_TEXT, skinHp } from './codex.js';
 import { heroPreview, mount } from './previews.js';
 import { getProfile } from './profile.js';
 
@@ -40,7 +40,7 @@ export function showLocalSetup(nick, onStart, onBack, firstDevice = 'kbm') {
             <span class="sname">${SKINS[s.skin].name}</span>
             <button class="arrow" data-skin-step="1" data-i="${i}" aria-label="Następny bohater">›</button>
           </div>
-          <div class="srole">${esc(t.ability)} · ${t.cd} s</div>
+          <div class="srole">${skinHp(s.skin)} HP · ${t.cd} s · ${esc(t.ability)}</div>
           <input data-i="${i}" data-k="nick" value="${esc(s.nick)}" maxlength="16" aria-label="Nick gracza ${i + 1}" spellcheck="false" />
           <select data-i="${i}" data-k="device" aria-label="Sterowanie gracza ${i + 1}">${devOptions().map(([v, l]) => `<option value="${v}" ${v === s.device ? 'selected' : ''}>${l}</option>`).join('')}</select>
         </div>`;

@@ -44,33 +44,43 @@ export const heroVulnerable = (h) => h.alive && !h.boss && h.invulnT <= 0 && h.d
 
 /**
  * Czy tarcza Rycerza blokuje atak nadchodzący z punktu (fromX, fromY).
- * @param {Player} h
+ * Gdy źródło leży w obrębie samego bohatera (strefa wycelowana prosto w niego: głaz, piorun, meteor),
+ * kierunek „skąd” nie istnieje — wtedy liczy się kierunek do gracza-źródła `src` (boss, do którego
+ * należy strefa): tarcza zwrócona do bossa blokuje. Bez gracza-źródła (lawa, ręce z grobów, miniony fal)
+ * taki atak nie jest blokowany.
+ * @param {Player} h @param {number} fromX @param {number} fromY @param {Player|null} [src]
  */
-export function shieldBlocks(h, fromX, fromY) {
+export function shieldBlocks(h, fromX, fromY, src = null) {
   if (h.skin !== 'rycerz' || h.abilT <= 0) return false;
-  const a = Math.atan2(fromY - h.y, fromX - h.x);
+  let dx = fromX - h.x;
+  let dy = fromY - h.y;
+  if (Math.hypot(dx, dy) <= HERO.radius) {
+    if (!src || src === h) return false;
+    dx = src.x - h.x;
+    dy = src.y - h.y;
+    if (Math.hypot(dx, dy) <= HERO.radius) return false;
+  }
   const f = Math.atan2(h.fy, h.fx);
-  return Math.abs(angleDiff(a, f)) <= ((SKINS.rycerz.ability.arc / 2) * Math.PI) / 180;
+  return Math.abs(angleDiff(Math.atan2(dy, dx), f)) <= ((SKINS.rycerz.ability.arc / 2) * Math.PI) / 180;
 }
 
 /**
  * Zadaje obrażenia bohaterowi. Zwraca true, jeśli trafienie przeszło.
  * @param {MatchState} state @param {Player} h @param {number} dmg
  * @param {string|null} sourceId id gracza-bossa (lub właściciela miniona)
+ * @param {number} fromX punkt, z którego nadchodzi atak (dla tarczy Rycerza); teren podaje pozycję bohatera
+ * @param {number} fromY
  */
 export function hurtHero(state, h, dmg, sourceId, fromX, fromY) {
   if (!heroVulnerable(h)) return false;
-  if (sourceId) {
-    const srcP = state.players.find((p) => p.id === sourceId);
-    if (srcP && srcP !== h && sameTeam(srcP, h)) return false; // brak ognia sojuszniczego
-  }
-  if (shieldBlocks(h, fromX, fromY)) {
+  const src = sourceId ? state.players.find((p) => p.id === sourceId) || null : null;
+  if (src && src !== h && sameTeam(src, h)) return false; // brak ognia sojuszniczego
+  if (shieldBlocks(h, fromX, fromY, src)) {
     state.events.push({ t: 'block', id: h.id, x: h.x, y: h.y });
     return false;
   }
   h.hp -= dmg;
   state.events.push({ t: 'heroHit', id: h.id, x: h.x, y: h.y, src: sourceId });
-  const src = sourceId ? state.players.find((p) => p.id === sourceId) : null;
   if (src && src.boss) {
     src.boss.invisT = 0; // zadanie obrażeń przerywa Zasłonę
     if (src.boss.type === 'burza') countOverloadHit(src);
@@ -103,11 +113,14 @@ export function hurtBoss(state, bossP, dmg, attackerId) {
   if (!b || b.dying || state.phase !== 'playing') return false;
   const def = BOSSES[/** @type {keyof typeof BOSSES} */ (b.type)];
   const amount = dmg * def.dmgTakenMul * feverMultiplier(b.reign);
+  // do roszczenia i statystyk liczy się tylko to, co faktycznie zeszło z paska (bez „overkillu” ostatniego ciosu);
+  // zdarzenie bossHit niżej pokazuje pełne trafienie
+  const dealt = Math.min(amount, b.hp);
   b.hp = Math.max(0, b.hp - amount);
   const attacker = state.players.find((p) => p.id === attackerId);
   if (attacker && !attacker.boss) {
-    attacker.dmgToBoss += amount;
-    attacker.dmgTotal = (attacker.dmgTotal || 0) + amount;
+    attacker.dmgToBoss += dealt;
+    attacker.dmgTotal = (attacker.dmgTotal || 0) + dealt;
   }
   state.events.push({ t: 'bossHit', id: bossP.id, by: attackerId, x: bossP.x, y: bossP.y, dmg: Math.round(amount * 10) / 10 });
   if (b.hp <= 0) onBossKilled(state, bossP, attackerId);

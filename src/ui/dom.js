@@ -71,8 +71,6 @@ export function closeModal() {
   if (m.prevFocus instanceof HTMLElement) m.prevFocus.focus({ preventScroll: true });
 }
 
-export const isModalOpen = () => !!modal;
-
 if (typeof document !== 'undefined') {
   // Esc zamyka okno (w fazie capture, żeby nie przełączać pauzy meczu).
   window.addEventListener(

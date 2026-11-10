@@ -10,6 +10,7 @@ import { slotColor } from '../render/palette.js';
 import { heroPreview, iconCanvas, mount } from './previews.js';
 import { getBest } from './records.js';
 import { getProfile } from './profile.js';
+import { roleLine } from './codex.js';
 
 const MODE_CARDS = [
   { id: 'crown', icon: 'mode:crown', name: 'Klasyczny vs boty', desc: 'Zasady korony: zabij bossa, przejmij koronę, pierwszy do 100 pkt. Ty kontra boty.', bots: [1, 7, 3], allies: false },
@@ -72,8 +73,8 @@ export function showModeSelect(o) {
             <select id="mode-device">${DEVICES.map(([v, l]) => `<option value="${v}" ${v === st.device ? 'selected' : ''}>${l}</option>`).join('')}</select>
           </div>
         </div>
-        <div class="opt"><span class="lbl">Twój bohater</span>
-          <div class="hero-pick">${SKIN_IDS.map((id) => `<button class="hero-chip ${st.skin === id ? 'sel' : ''}" data-skin="${id}" style="--c:${SKINS[id].color}"><span class="hero-pv" data-pv="${id}"></span><span>${SKINS[id].name}</span></button>`).join('')}</div>
+        <div class="opt"><span class="lbl">Twój bohater · ${esc(roleLine(st.skin))}</span>
+          <div class="hero-pick">${SKIN_IDS.map((id) => `<button class="hero-chip ${st.skin === id ? 'sel' : ''}" data-skin="${id}" style="--c:${SKINS[id].color}" title="${esc(roleLine(id))}"><span class="hero-pv" data-pv="${id}"></span><span>${SKINS[id].name}</span></button>`).join('')}</div>
         </div>
       </div>`;
     root.innerHTML = `<div class="mode-cards">${MODE_CARDS.map(card).join('')}</div>${opts}`;

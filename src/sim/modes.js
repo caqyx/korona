@@ -4,9 +4,10 @@
  *  - bossrush: 8 bossów (AI) po kolei, każdy silniejszy, losowanych skrzynką; ulepszenia między bossami.
  * Boss sterowany przez AI to gracz z flagą `ai` (id 'AI') — korzysta z tych samych kitów bossów.
  */
-import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, HERO, BOSS_COMMON, BOSSES } from './config.js';
-import { createPlayer } from './state.js';
-import { startTransition, respawnHero, endMatch, leader, topDamageDealer, promoteToBoss, drawBossType } from './rules.js';
+import { MODES, MINIONS, UPGRADE_IDS, BOSS_IDS, BOSS_COMMON, BOSSES, bossrushLives } from './config.js';
+import { createPlayer, heroMaxHp } from './state.js';
+import { round3 } from './vec.js';
+import { startTransition, respawnHero, endMatch, leader, topDamageDealer, promoteToBoss, drawBossType, resetClaims } from './rules.js';
 import { makeRng } from './rng.js';
 import { spawnWaveMinion } from './minions.js';
 import { edgePoint } from './physics.js';
@@ -24,13 +25,20 @@ export function initMode(state) {
   const ai = createPlayer(AI_ID, 'Boss', 'rycerz', state.players.length, state.mapId);
   ai.ai = true;
   ai.alive = false;
-  ai.respawnT = Infinity;
+  ai.benched = true;
   state.players.push(ai);
   state.crown = { state: 'none', holderId: null, x: 0, y: 0 };
-  state.modeData =
-    state.mode === 'survival'
-      ? { wave: 0, stage: 'pre', t: 1, queue: [], pending: [], spawnT: 0, kills: 0, bossWave: false, hpMul: 1 }
-      : { stage: 'pre', t: 1, defeated: 0, total: MODES.bossrush.bosses, kills: 0 };
+  state.modeData = state.mode === 'survival' ? { wave: 0, stage: 'pre', t: 1, queue: [], pending: [], spawnT: 0, kills: 0, bossWave: false, hpMul: 1 } : bossrushData(state);
+}
+
+/**
+ * Stan Boss Rush. `lives`/`livesMax` — pula „drugich szans” drużyny (kontrakt HUD: liczby całkowite ≥ 0);
+ * `downed` — trwa już rozliczona wspólna śmierć (do pierwszego odrodzenia nie zabiera kolejnego życia).
+ * @param {any} state
+ */
+function bossrushData(state) {
+  const lives = bossrushLives(heroesOf(state).length);
+  return { stage: 'pre', t: 1, defeated: 0, total: MODES.bossrush.bosses, kills: 0, lives, livesMax: lives, downed: false };
 }
 
 /** Krok trybu (po aktualizacji świata). @param {any} state @param {number} dt @param {import('./rng.js').Rng} rng */
@@ -42,15 +50,37 @@ export function modeStep(state, dt, rng) {
   checkWipe(state);
 }
 
-/** Wszyscy bohaterowie martwi (w trakcie walki) = koniec. */
+/**
+ * Wszyscy bohaterowie martwi jednocześnie (w trakcie walki) = koniec — chyba że Boss Rush ma jeszcze
+ * „drugą szansę”: wtedy drużyna traci jedno życie i odradza się normalnie.
+ * @param {any} state
+ */
 function checkWipe(state) {
   const md = state.modeData;
   if (md.stage === 'intermission' || md.stage === 'pre') return;
   const heroes = heroesOf(state);
-  if (heroes.length && heroes.every((h) => !h.alive)) {
-    md.result = state.mode === 'survival' ? { wave: md.wave, kills: md.kills } : { defeated: md.defeated, kills: md.kills };
-    endMatch(state, leader(state)?.id ?? null, 'wipe');
+  if (!heroes.length) return;
+  if (heroes.some((h) => h.alive)) {
+    md.downed = false;
+    return;
   }
+  if (md.downed || spendLife(state)) return;
+  md.result = state.mode === 'survival' ? { wave: md.wave, kills: md.kills } : { defeated: md.defeated, kills: md.kills };
+  endMatch(state, leader(state)?.id ?? null, 'wipe');
+}
+
+/**
+ * Zużywa „drugą szansę” (tylko Boss Rush): odejmuje życie i oznacza wspólną śmierć jako rozliczoną —
+ * bohaterowie wracają zwykłym odliczaniem `MODES.bossrush.respawn`.
+ * @param {any} state @returns {boolean} czy życie zostało zużyte (mecz trwa dalej)
+ */
+function spendLife(state) {
+  const md = state.modeData;
+  if (state.mode !== 'bossrush' || !(md.lives > 0)) return false;
+  md.lives -= 1;
+  md.downed = true;
+  state.events.push({ t: 'lifeLost', left: md.lives });
+  return true;
 }
 
 // --- Przetrwanie -------------------------------------------------------------
@@ -135,7 +165,7 @@ function bossrushStep(state, dt, rng) {
     }
     return;
   }
-  if (md.stage === 'intermission' && (md.t <= 0 || allPicked(state))) endIntermission(state, rng, 1.2);
+  if (md.stage === 'intermission' && (md.t <= 0 || allPicked(state))) endIntermission(state, rng, MODES.bossrush.preBoss);
 }
 
 // --- wspólne -------------------------------------------------------------
@@ -154,11 +184,12 @@ export function onModeBossKilled(state, bossP, killerId) {
     killer.score += state.mode === 'survival' ? MODES.survival.bossScore : MODES.bossrush.killScore;
     state.events.push({ t: 'lastHit', id: killer.id, killer: killerId, pct: Math.round((killer.dmgToBoss / Math.max(1, b.maxHp)) * 100), boss: bossP.id, bossType: b.type });
   }
-  for (const p of state.players) p.dmgToBoss = 0;
+  resetClaims(state);
   state.events.push({ t: 'bossDie', x: bossP.x, y: bossP.y, bossType: b.type });
   bossP.boss = null;
   bossP.alive = false;
-  bossP.respawnT = Infinity;
+  bossP.benched = true;
+  bossP.respawnT = 0;
   state.lastBossType = b.type;
   state.zones = state.zones.filter((z) => z.ownerId !== bossP.id);
   state.projectiles = state.projectiles.filter((p) => p.team === 'hero');
@@ -194,15 +225,24 @@ export function scaleModeBoss(state, p) {
   const base = BOSS_COMMON.hpPerHero * Math.max(1, heroes);
   p.boss.maxHp = Math.round(base * mul * (p.boss.maxHp / Math.max(1, base)));
   p.boss.hp = p.boss.maxHp;
-  p.boss.cdMul = Math.round(cdMul * 1000) / 1000;
+  p.boss.cdMul = round3(cdMul);
   p.x = 0;
   p.y = 0;
 }
 
-/** Bohater zginął w trybie: Przetrwanie — czeka do przerwy; Boss Rush — odrodzenie po 5 s. */
+/**
+ * Bohater zginął w trybie: Boss Rush — odrodzenie po 5 s; Przetrwanie — na fali z bossem odrodzenie po
+ * `bossWaveRespawn` s, na zwykłej „na ławce” do przerwy (flaga `benched` zamiast `respawnT = Infinity`:
+ * Infinity nie przechodzi przez JSON, a snapshot musi).
+ */
 export function onModeHeroKilled(state, h) {
   if (state.mode === 'teams') return;
-  h.respawnT = state.mode === 'bossrush' ? MODES.bossrush.respawn : Infinity;
+  if (state.mode === 'bossrush') h.respawnT = MODES.bossrush.respawn;
+  else if (state.modeData.bossWave) h.respawnT = MODES.survival.bossWaveRespawn;
+  else {
+    h.benched = true;
+    h.respawnT = 0;
+  }
 }
 
 function startIntermission(state, rng, seconds) {
@@ -214,7 +254,7 @@ function startIntermission(state, rng, seconds) {
   state.offers = {};
   for (const h of heroesOf(state)) {
     if (!h.alive) respawnHero(state, h, rng, 2);
-    h.hp = h.maxHp ?? HERO.hp;
+    h.hp = heroMaxHp(h);
     const pool = [...UPGRADE_IDS];
     const choices = [];
     for (let i = 0; i < 3; i++) choices.push(pool.splice(rng.int(pool.length), 1)[0]);
@@ -248,15 +288,14 @@ function autoPick(state, h, o) {
 /** Efekt ulepszenia (bez zdarzeń) — współdzielony z heroes/index applyUpgrade. */
 export function applyUpgradeEffect(h, id) {
   const m = (h.mods ||= { dmg: 1, cd: 1, spd: 1, dashCd: 1, range: 1 });
-  const r = (v) => Math.round(v * 1000) / 1000;
   if (id === 'vit') {
-    h.maxHp = (h.maxHp ?? HERO.hp) + 1;
+    h.maxHp = heroMaxHp(h) + 1;
     h.hp = h.maxHp;
-  } else if (id === 'dmg') m.dmg = r(m.dmg * 1.2);
-  else if (id === 'cd') m.cd = r(m.cd * 0.85);
-  else if (id === 'spd') m.spd = r(m.spd * 1.1);
-  else if (id === 'dash') m.dashCd = r(m.dashCd * 0.75);
-  else if (id === 'range') m.range = r(m.range * 1.25);
+  } else if (id === 'dmg') m.dmg = round3(m.dmg * 1.2);
+  else if (id === 'cd') m.cd = round3(m.cd * 0.85);
+  else if (id === 'spd') m.spd = round3(m.spd * 1.1);
+  else if (id === 'dash') m.dashCd = round3(m.dashCd * 0.75);
+  else if (id === 'range') m.range = round3(m.range * 1.25);
 }
 
 export { BOSS_IDS };
@@ -303,7 +342,7 @@ function teamsBossKilled(state, bossP, killerId) {
   b.channel = null;
   const top = topDamageDealer(state, killerId);
   if (top) {
-    top.score += 10;
+    top.score += MODES.teams.killScore;
     top.lastHits += 1;
     state.events.push({ t: 'lastHit', id: top.id, killer: killerId, pct: Math.round((top.dmgToBoss / Math.max(1, b.maxHp)) * 100), boss: bossP.id, bossType: b.type });
   }

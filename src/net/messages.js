@@ -28,7 +28,12 @@ export const LIMITS = Object.freeze({
   maxEvents: 256,
   maxPlayers: 6,
   maxEntities: 600,
-  maxDepth: 8,
+  /**
+   * Głębokość liczona od payloadu. Prawdziwy snapshot sięga 9 poziomów
+   * (state.players[i].boss.cast.data.spots[j][k]), a opakowany w RELAY — 11. Limit 8 odrzucał
+   * snapshoty podczas rzutów Nekromanty/Pajęczycy/Burzy (zamrożony obraz u klientów, zgubiony handoff).
+   */
+  maxDepth: 16,
   maxString: 16 * 1024,
 });
 

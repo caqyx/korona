@@ -1,4 +1,4 @@
-import { distToSegment, angleDiff } from './vec.js';
+import { distToSegment, angleDiff, mergeKept } from './vec.js';
 import { HERO } from './config.js';
 import { nextId } from './state.js';
 import { hurtHero, hurtBoss, damageMinion, bossRadius, sameTeam, canHitMinion, heroesHostile } from './combat.js';
@@ -102,7 +102,10 @@ export function zoneContains(z, px, py, pr) {
 /** @param {import('./state.js').MatchState} state @param {number} dt */
 export function updateZones(state, dt) {
   const keep = [];
-  for (const z of state.zones) {
+  const before = state.zones;
+  for (const z of before) {
+    // lista podmieniona w trakcie pętli (strefa dobiła bossa — jego strefy wyczyszczone): pomijamy usunięte
+    if (state.zones !== before && !state.zones.includes(z)) continue;
     if (z.warn > 0) {
       if (z.born !== state.tick) z.warn -= dt;
       if (z.warn <= 1e-9) {
@@ -117,7 +120,7 @@ export function updateZones(state, dt) {
     z.life -= dt;
     if (z.life > 0) keep.push(z);
   }
-  state.zones = keep;
+  state.zones = mergeKept(before, state.zones, keep);
 }
 
 /** @param {import('./state.js').MatchState} state @param {Zone} z @param {number} dt */

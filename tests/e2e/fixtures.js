@@ -3,6 +3,21 @@
  * BroadcastChannel nie działa między kontekstami, więc most (exposeBinding) przekazuje
  * wiadomości kanału do pozostałych stron — sama logika aplikacji pozostaje bez zmian.
  */
+/** Konteksty otwarte przez bieżący test (zamykane w `closePlayersAfterEach`). */
+const openContexts = [];
+
+/**
+ * Rejestruje sprzątanie kontekstów po każdym teście pliku. Bez tego strony poprzednich testów
+ * (mecze botów przy ×8) działały w tle do końca całego przebiegu i dławiły CPU kolejnym testom —
+ * stąd brały się losowe timeouty i fałszywe „utraty hosta” w testach migracji.
+ * @param {import('@playwright/test').TestType<any, any>} test
+ */
+export function closePlayersAfterEach(test) {
+  test.afterEach(async () => {
+    await Promise.all(openContexts.splice(0).map((c) => c.close().catch(() => {})));
+  });
+}
+
 export async function createPlayers(browser, n, { query = '', scores = [] } = {}) {
   const pages = [];
   const errors = [];
@@ -10,6 +25,7 @@ export async function createPlayers(browser, n, { query = '', scores = [] } = {}
   for (let i = 0; i < n; i++) {
     const ctx = await browser.newContext({ viewport: { width: 960, height: 600 } });
     contexts.push(ctx);
+    openContexts.push(ctx);
     const page = await ctx.newPage();
     page.__name = `P${i + 1}`;
     page.on('pageerror', (e) => errors.push(`${page.__name} pageerror: ${e.message}`));
@@ -69,7 +85,23 @@ export async function pickSkinsAndStart(pages, skins) {
   }
   await pages[0].waitForFunction(() => !document.querySelector('#btn-start').disabled);
   await pages[0].click('#btn-start');
-  for (const p of pages) await p.waitForFunction(() => window.__korona?.debug?.().phase === 'match' && !!window.__korona.getState());
+  // równolegle i z szybkim, opisanym błędem: 'match' to stan przejściowy — gdy mecz skończy się
+  // (np. walkowerem po fałszywej utracie hosta), zanim go zobaczymy, test ma paść z logiem, a nie wisieć
+  await Promise.all(
+    pages.map((p) =>
+      p.waitForFunction(
+        () => {
+          const k = window.__korona;
+          const d = k?.debug?.();
+          if (!d) return false;
+          if (d.phase === 'ended') throw new Error('mecz skończył się przed potwierdzeniem startu: ' + JSON.stringify({ role: d.role, epoch: d.epoch, end: k.getState()?.endReason, log: d.log.slice(-4) }));
+          return d.phase === 'match' && !!k.getState();
+        },
+        null,
+        { timeout: 30_000 },
+      ),
+    ),
+  );
 }
 
 export const debug = (page) => page.evaluate(() => window.__korona.debug());

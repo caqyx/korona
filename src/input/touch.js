@@ -2,6 +2,7 @@ import { BTN } from '../sim/state.js';
 import { autoAim } from './aim.js';
 import { SKINS, BOSSES, HERO } from '../sim/config.js';
 import { iconCanvas, mount } from '../ui/previews.js';
+import { upgradeCardRect, UPGRADE_CARDS } from '../render/hudLayout.js';
 
 /** @type {Promise<any>|null} */
 let sfx = null;
@@ -24,10 +25,15 @@ const BUTTONS = [
  * Sterowanie dotykowe (PWA mobile): pływający joystick po lewej, przyciski po prawej.
  * Przeciągnięcie przycisku ataku = ręczne celowanie; bez przeciągania — auto-aim.
  * Przyciski mają ikony ze sprites.js i nakładkę cooldownu (odczyt z `me` w read()).
+ * Przycisk pauzy (prawy górny róg) woła `opts.onPause`; w czasie losowania bossa (skrzynka)
+ * przyciski akcji i joystick są ukryte (klasa `in-case`), pauza zostaje.
  * @param {HTMLElement} root kontener nakładki
+ * @param {{onPause?:()=>void}} [opts]
  */
-export function createTouch(root) {
+export function createTouch(root, opts = {}) {
   root.innerHTML = `
+    <div class="tu-pick" aria-hidden="true"></div>
+    <button class="tp-pause" data-pause aria-label="Pauza"><i aria-hidden="true"></i></button>
     <div class="tj-zone"><div class="tj-hint"></div><div class="tj-base"><div class="tj-ring"></div><div class="tj-knob"></div></div></div>
     <div class="tb-wrap">
       ${BUTTONS.map(([b, lab, cls]) => `<button class="tb ${cls} ready" data-b="${b}" aria-label="${lab}"><span class="ico"></span><span class="sweep"></span><span class="cdn"></span><span class="lab">${lab}</span></button>`).join('')}
@@ -37,6 +43,16 @@ export function createTouch(root) {
   const base = /** @type {HTMLElement} */ (root.querySelector('.tj-base'));
   const knob = /** @type {HTMLElement} */ (root.querySelector('.tj-knob'));
   const hint = /** @type {HTMLElement} */ (root.querySelector('.tj-hint'));
+  const pauseBtn = /** @type {HTMLElement} */ (root.querySelector('[data-pause]'));
+  pauseBtn.addEventListener('click', () => opts.onPause?.());
+  pauseBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  let inCase = false;
+  /** Chowa przyciski akcji na czas skrzynki bossa (zapis do DOM tylko przy zmianie). @param {boolean} on */
+  const setInCase = (on) => {
+    if (on === inCase) return;
+    inCase = on;
+    root.classList.toggle('in-case', on);
+  };
   /** @type {any} */
   const st = { mx: 0, my: 0, held: 0, pressed: 0, joyId: -1, ox: 0, oy: 0, jr: 50, touchedAim: false };
   const bits = { attack: BTN.ATTACK, dash: BTN.DASH, ability: BTN.ABILITY, q: BTN.Q, e: BTN.E, r: BTN.R };
@@ -85,6 +101,48 @@ export function createTouch(root) {
   };
   setIcon('attack', 'atk');
   setIcon('dash', 'dash');
+
+  // --- karty ulepszeń (przerwa między falami): dotknięcie karty = wybór i zatwierdzenie ---
+  // Symulacja zna tylko „ruch w bok zmienia zaznaczenie, ATAK zatwierdza”, więc dotknięcie
+  // zapamiętuje numer karty, a read() dochodzi do niej impulsami ruchu i wciska ATAK.
+  st.pick = -1;
+  st.pulse = true;
+  st.tapCards = true;
+  let inOffer = false;
+  /** @param {boolean} on */
+  const setInOffer = (on) => {
+    if (on === inOffer) return;
+    inOffer = on;
+    root.classList.toggle('in-offer', on);
+    if (!on) st.pick = -1;
+  };
+  /** @type {HTMLElement} */ (root.querySelector('.tu-pick')).addEventListener('pointerdown', (e) => {
+    for (let i = 0; i < UPGRADE_CARDS; i++) {
+      const r = upgradeCardRect(window.innerWidth, window.innerHeight, i);
+      if (e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y && e.clientY <= r.y + r.h) {
+        st.pick = i;
+        st.pulse = true;
+        haptic(12);
+      }
+    }
+  });
+  /**
+   * Krok dochodzenia do dotkniętej karty. Zwraca ruch w bok do wstrzyknięcia (albo 0) i ustawia
+   * `st.confirm`, gdy zaznaczenie jest już na miejscu.
+   * @param {{sel:number, picked:any}} off
+   */
+  const stepPick = (off) => {
+    st.confirm = false;
+    if (st.pick < 0) return 0;
+    if (off.sel === st.pick) {
+      st.confirm = true;
+      st.pick = -1;
+      return 0;
+    }
+    // co drugi odczyt zero — symulacja reaguje na ZMIANĘ kierunku
+    st.pulse = !st.pulse;
+    return st.pulse ? 0 : Math.sign(st.pick - off.sel);
+  };
 
   zone.addEventListener('pointerdown', (e) => {
     st.joyId = e.pointerId;
@@ -216,7 +274,22 @@ export function createTouch(root) {
       if (!me || !st.drag || !st.drag.moved || st.drag.cancel) return null;
       return { x: me.x + st.dir.x * st.dist, y: me.y + st.dir.y * st.dist, ability: st.drag.bit !== BTN.ATTACK };
     },
+    /** Czy dotknięcie karty ulepszenia ma ją wybierać (tylko gdy dotyk to jedyny lokalny gracz). @param {boolean} on */
+    setTapCards(on) {
+      st.tapCards = on;
+    },
     read(state, me) {
+      setInCase(state?.phase === 'transition');
+      const off = me ? state?.offers?.[me.id] : null;
+      const offering = st.tapCards && !!off && off.picked === null;
+      setInOffer(offering);
+      const pickMove = offering ? stepPick(off) : 0;
+      if (offering && (pickMove !== 0 || st.confirm)) {
+        st.pressed = 0;
+        const confirm = st.confirm;
+        st.confirm = false;
+        return { moveX: pickMove, moveY: 0, aimX: me.x + me.fx, aimY: me.y + me.fy, buttons: confirm ? BTN.ATTACK : 0 };
+      }
       let buttons = st.held | st.pressed;
       st.pressed = 0;
       const mx0 = me?.x ?? 0;

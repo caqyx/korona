@@ -57,18 +57,18 @@ describe('Rycerz: shield', () => {
 
   it('blocks frontal boss melee while active', () => {
     const { k, events } = knightVsKolosMelee({ shield: true, aimX: 0 });
-    expect(k.hp).toBe(HERO.hp);
+    expect(k.hp).toBe(k.maxHp);
     expect(events.some((e) => e.t === 'block' && e.id === 'K')).toBe(true);
   });
 
   it('without shield the same hit lands', () => {
     const { k } = knightVsKolosMelee({ shield: false, aimX: 0 });
-    expect(k.hp).toBe(HERO.hp - 1);
+    expect(k.hp).toBe(k.maxHp - 1);
   });
 
   it('does not block hits from behind', () => {
     const { k } = knightVsKolosMelee({ shield: true, aimX: 10 });
-    expect(k.hp).toBe(HERO.hp - 1);
+    expect(k.hp).toBe(k.maxHp - 1);
   });
 
   it('reflects a boss projectile toward the boss, dealing reflectDmg', () => {
@@ -88,7 +88,7 @@ describe('Rycerz: shield', () => {
     }
     expect(reflected).not.toBe(null);
     expect(events.some((e) => e.t === 'reflect' && e.id === 'K')).toBe(true);
-    expect(k.hp).toBe(HERO.hp);
+    expect(k.hp).toBe(k.maxHp);
     expect(boss.boss.maxHp - boss.boss.hp).toBeCloseTo(C.reflectDmg, 9);
     expect(events.some((e) => e.t === 'bossHit' && e.by === 'K')).toBe(true);
   });

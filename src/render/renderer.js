@@ -3,19 +3,18 @@
  * powiększanym na ekran bez wygładzania; HUD rysowany w pełnej rozdzielczości fontem pikselowym.
  * Renderer tylko czyta stan — zero logiki gry.
  */
-import { MATCH, HERO, BOSS_COMMON, BOSSES, SKINS } from '../sim/config.js';
+import { MATCH, HERO, BOSS_COMMON, BOSSES, SKINS, heroBaseHp } from '../sim/config.js';
 import { ringRadius } from '../sim/zones.js';
-import { slotColor } from './palette.js';
+import { slotColor, TELEGRAPH as RED, TEAM_COLORS } from './palette.js';
 import { worldToArt } from './camera.js';
 import { drawHud } from './hud.js';
+import { drawOwnRing, drawOwnArrow, drawCrownGuide } from './markers.js';
+import { drawEdgeIndicators } from './indicators.js';
 import { getArenaCanvas, drawHazardsAnimated, getObstacleSprite, getBushSprite } from './maps/index.js';
 import { getMap } from '../sim/maps.js';
 import { PPM, getHeroSprite, getBossSprite, getMinionSprite, getTurretSprite, getCrownSprite, getProjectileSprite } from './sprites.js';
 import { dither, fillCircle, strokeCircle, fillRing, fillEllipse, line, fillPolygon, strokePolygon, sectorPoints, linePoints, drawSprite } from './pixel.js';
 
-const RED = '#ff2848';
-/** Kolory drużyn (tryb Bitwa bossów). */
-export const TEAM_COLORS = ['#4f8bff', '#ff4f5e'];
 const RED_DARK = '#a3122e';
 const BOSS_R = HERO.radius * BOSS_COMMON.radiusMul;
 
@@ -63,7 +62,9 @@ export function createRenderer(canvas) {
     resize,
     /**
      * @param {any} view
-     * @param {{cam:any, fx:any, meIds:string[], time:number, overlay?:string|null, mode:'local'|'online', sound?:(n:string)=>void}} o
+     * @param {{cam:any, fx:any, meIds:string[], time:number, overlay?:string|null, mode:'local'|'online', device?:string|null,
+     *   hint?:string|null, touch?:boolean, aim?:any, sound?:(n:string)=>void}} o
+     *   `device`: rodzaj urządzenia jedynego lokalnego gracza (podpowiedzi sterowania w HUD)
      */
     draw(view, o) {
       const { cam, fx } = o;
@@ -88,6 +89,7 @@ export function createRenderer(canvas) {
       drawZones(g, cam, view.zones, o.time, view);
       drawRings(g, cam, fx);
       drawCrownCenter(g, cam, view, o.time);
+      drawCrownGuide(g, cam, view, o.meIds, o.time);
       drawEntities(g, cam, view, o, { moving, fx, map });
       drawProjectiles(g, cam, view, o.time, trails);
       drawBushes(g, cam, map, o.time);
@@ -99,6 +101,7 @@ export function createRenderer(canvas) {
       ctx.drawImage(buf, 0, 0, cam.aw, cam.ah, 0, 0, Math.round(cam.aw * cam.S * dpr), Math.round(cam.ah * cam.S * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawScreenWorldText(ctx, cam, view, o);
+      drawEdgeIndicators(ctx, cam, view, o);
       drawHud(ctx, cam, view, o);
     },
   };
@@ -321,11 +324,9 @@ function drawHero(g, cam, view, p, o, st) {
     g.fillStyle = TEAM_COLORS[p.team];
     strokeCircle(g, x, y + 3, 6);
   }
-  g.fillStyle = color;
-  if (isMe) {
-    g.fillRect(x - 6, y + 3, 2, 1);
-    g.fillRect(x + 5, y + 3, 2, 1);
-  }
+  // „to ty”: pierścień pod stopami, a po starcie/odrodzeniu puls i strzałka nad głową
+  const mark = isMe ? st.fx.mark[p.id] || 0 : 0;
+  if (isMe) drawOwnRing(g, x, y, color, mark);
   // tarcza Rycerza
   if (p.skin === 'rycerz' && p.abilT > 0) {
     g.fillStyle = dither(g, '#9be7ff', 0.5);
@@ -365,7 +366,7 @@ function drawHero(g, cam, view, p, o, st) {
     g.fillRect(x + 4, y + 1, 1, 1);
   }
   // serca HP nad głową
-  const maxHp = p.maxHp ?? HERO.hp;
+  const maxHp = p.maxHp ?? heroBaseHp(p.skin);
   for (let i = 0; i < maxHp; i++) {
     const hx = x - Math.round(maxHp * 2) + i * 4;
     const hy = y - 19;
@@ -375,6 +376,7 @@ function drawHero(g, cam, view, p, o, st) {
     g.fillRect(hx, hy + 1, 3, 1);
     g.fillRect(hx + 1, hy + 2, 1, 1);
   }
+  if (isMe && (mark > 0 || view.phase === 'countdown')) drawOwnArrow(g, x, y, color, o.time);
 }
 
 function drawBoss(g, cam, view, p, o, st) {

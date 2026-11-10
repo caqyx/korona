@@ -237,7 +237,7 @@ describe('boss passives', () => {
     expect(state.players[1].dmgToBoss).toBeCloseTo(85, 9);
   });
 
-  it('Cień has 0.7x HP and 1.3x speed', () => {
+  it('Cień has 0.9x HP and 1.3x speed', () => {
     const hp = {};
     const dist = {};
     for (const type of ['cien', 'burza', 'kolos']) {
@@ -249,7 +249,7 @@ describe('boss passives', () => {
       for (let i = 0; i < 60; i++) step(state, { B: inp({ moveX: 1, aimX: 10 }) });
       dist[type] = boss.x;
     }
-    expect(hp.cien).toBe(Math.round(BOSS_COMMON.hpPerHero * 2 * 0.7));
+    expect(hp.cien).toBe(Math.round(BOSS_COMMON.hpPerHero * 2 * 0.9));
     expect(hp.burza).toBe(BOSS_COMMON.hpPerHero * 2);
     expect(dist.burza).toBeCloseTo(BOSS_COMMON.speed * BOSSES.burza.speedMul, 6);
     expect(dist.cien).toBeCloseTo(BOSS_COMMON.speed * BOSSES.cien.speedMul, 6);

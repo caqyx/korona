@@ -1,5 +1,5 @@
 import { HERO, SKINS, SKIN_IDS } from '../config.js';
-import { BTN } from '../state.js';
+import { BTN, changeSkin } from '../state.js';
 import { HAZARD } from '../maps.js';
 import { applyUpgradeEffect } from '../modes.js';
 import { basicAttack } from './common.js';
@@ -27,18 +27,23 @@ export function updateHero(state, h, input, pressed, dt, rng) {
     return;
   }
   if (!h.alive) {
-    if (input.skin && SKIN_IDS.includes(/** @type {any} */ (input.skin))) h.skin = input.skin;
+    if (input.skin && input.skin !== h.skin && SKIN_IDS.includes(/** @type {any} */ (input.skin))) changeSkin(h, input.skin);
+    if (h.benched) return; // bez odliczania: przywraca go tryb (przerwa między falami) albo awans na bossa AI
     h.respawnT -= dt;
     if (h.respawnT <= 0 && h.connected) respawnHero(state, h, rng, HERO.respawnInvuln);
     return;
   }
   const ab = HERO_ABILITIES[/** @type {keyof typeof HERO_ABILITIES} */ (h.skin)];
   aimAt(h, input.aimX, input.aimY);
-  if (h.stunT > 0) return;
-  if (pressed & BTN.DASH && h.dashCd <= 0) startDash(state, h, input);
-  if (h.dashT <= 0) moveHero(h, input, dt, ab.moveMul(h));
-  ab.update(state, h, dt);
-  if (state.phase !== 'playing') return;
+  // Ogłuszony nie może działać (dash, ruch, atak, umiejętność), ale liczniki umiejętności biegną dalej —
+  // ogłuszenie nie przedłuża Szału ani ładowania strzału (ab.update dostaje `canAct`).
+  const canAct = h.stunT <= 0;
+  if (canAct) {
+    if (pressed & BTN.DASH && h.dashCd <= 0) startDash(state, h, input);
+    if (h.dashT <= 0) moveHero(h, input, dt, ab.moveMul(h));
+  }
+  ab.update(state, h, dt, canAct);
+  if (!canAct || state.phase !== 'playing') return;
   if (input.buttons & BTN.ATTACK && h.atkCd <= 0 && h.dashT <= 0 && !ab.blocksAttack(h)) basicAttack(state, h);
   if (pressed & BTN.ABILITY && h.abilCd <= 0 && h.abilT <= 0 && ab.start(state, h, input)) {
     h.abilCd *= h.mods?.cd ?? 1;

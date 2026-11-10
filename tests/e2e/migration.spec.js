@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { createPlayers, createRoomAndJoin, pickSkinsAndStart, debug, tickOf, scoresOf } from './fixtures.js';
+import { createPlayers, createRoomAndJoin, pickSkinsAndStart, debug, tickOf, scoresOf, closePlayersAfterEach } from './fixtures.js';
+
+closePlayersAfterEach(test);
 
 async function setupMatch(browser, query = 'bot=1') {
   // P1 najlepszy (host), P2 średni (następca), P3 najsłabszy

@@ -28,6 +28,9 @@ export function norm(x, y) {
 /** Zaokrągla do 1e-4 — trzyma snapshot krótki i stabilny. @param {number} v */
 export const q = (v) => Math.round(v * 1e4) / 1e4;
 
+/** Zaokrągla do 1e-3 — dokładność liczb w snapshocie sieciowym (mnożniki, roszczenia, przesunięcia). @param {number} v */
+export const round3 = (v) => Math.round(v * 1000) / 1000;
+
 /** Odległość punktu od odcinka. */
 export function distToSegment(px, py, ax, ay, bx, by) {
   const dx = bx - ax;
@@ -36,4 +39,19 @@ export function distToSegment(px, py, ax, ay, bx, by) {
   let t = l2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
   t = clamp(t, 0, 1);
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/**
+ * Wynik pętli „przejdź listę i zbuduj `keep`”, gdy w jej trakcie ktoś PODMIENIŁ listę w stanie
+ * (np. śmierć bossa czyści jego pociski i strefy: `state.x = state.x.filter(…)`). Bez tego końcowe
+ * `state.x = keep` przywracało wyczyszczone elementy. Zostają: ocalałe z pętli, które przeszły
+ * czyszczenie, oraz elementy dodane już po czyszczeniu.
+ * @template T @param {T[]} before lista sprzed pętli @param {T[]} current lista w stanie po pętli @param {T[]} keep
+ * @returns {T[]}
+ */
+export function mergeKept(before, current, keep) {
+  if (current === before) return keep;
+  const allowed = new Set(current);
+  const old = new Set(before);
+  return [...keep.filter((x) => allowed.has(x)), ...current.filter((x) => !old.has(x))];
 }

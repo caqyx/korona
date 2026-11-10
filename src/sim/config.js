@@ -23,6 +23,8 @@ export const MATCH = {
   ],
   spawnRadius: 12.5,
   spawnCount: 8,
+  /** promień okręgu startowego jako część promienia areny (mapy prostokątne: krótszego półboku) */
+  startRing: 0.78,
   crownPickupRadius: 1.1,
   /** przejście korony: losowanie w stylu skrzynki (spin) + odsłonięcie */
   transitionTime: 3.2,
@@ -35,10 +37,39 @@ export const SCORE = {
   /** co ile sekund w koronie przyznawany jest perCrownSecond (strojenie, patrz docs/decisions.md) */
   crownInterval: 3,
   bossKillsHero: 2,
+  /** przy tylu bohaterach (lub mniej) zabójstwo jest warte pełne bossKillsHero; powyżej wartość maleje jak killRefHeroes / bohaterowie */
+  killRefHeroes: 3,
   lastHit: 10,
   assist: 2,
+  /** asysta: świeże obrażenia ≥ min(assistThreshold, assistPool / bohaterowie) × maks. HP bossa */
   assistThreshold: 0.25,
+  /** łączna część HP bossa „do podziału” na asysty — przy wielu bohaterach próg spada poniżej assistThreshold */
+  assistPool: 0.75,
+  /**
+   * Na ile równych części dzielony jest punkt w liczniku `killAcc` (NWW liczb 1..maxPlayersLocal = 840):
+   * ułamkowa wartość zabójstwa (np. 6/7 pkt) jest wtedy liczbą całkowitą — bez zaokrągleń i dryfu w snapshotach.
+   */
+  killUnits: lcmUpTo(MATCH.maxPlayersLocal),
 };
+
+/** Największy wspólny dzielnik. @param {number} a @param {number} b @returns {number} */
+function gcd(a, b) {
+  return b ? gcd(b, a % b) : a;
+}
+
+/** Najmniejsza wspólna wielokrotność liczb 1..n. @param {number} n */
+function lcmUpTo(n) {
+  let l = 1;
+  for (let i = 2; i <= n; i++) l = (l * i) / gcd(l, i);
+  return l;
+}
+
+/**
+ * Roszczenie do korony: po śmierci bossa bohater, który nie przejął korony (i nie był bossem),
+ * przenosi do następnego panowania `carry` swojego udziału w HP poprzedniego bossa.
+ * Strojenie: 0,25–0,4 (patrz docs/decisions.md).
+ */
+export const CLAIM = { carry: 0.3 };
 
 export const FEVER = {
   startAfter: 40,
@@ -50,8 +81,10 @@ export const FEVER = {
 export const HERO = {
   radius: 0.4,
   speed: 6,
+  /** bazowe HP klasy bez własnego pola `hp` w SKINS (klasy wręcz mają 4 — patrz heroBaseHp) */
   hp: 3,
-  respawnTime: 3,
+  /** odrodzenie w Koronie i Bitwie bossów (Boss Rush i Przetrwanie mają własne stałe w MODES) */
+  respawnTime: 2,
   respawnInvuln: 2,
   dashCooldown: 1.2,
   dashDuration: 0.15,
@@ -61,6 +94,7 @@ export const HERO = {
 
 export const BOSS_COMMON = {
   radiusMul: 3,
+  /** wartość z GDD; BOSS_BUFF na końcu pliku podnosi ją do 140 */
   hpPerHero: 120,
   speed: 5,
   castMoveMul: 0.5,
@@ -71,12 +105,15 @@ export const BOSS_COMMON = {
 /**
  * Skiny bohaterów. attack.kind: 'melee' | 'projectile'.
  * arc = pełny kąt stożka w stopniach.
+ * `hp` (opcjonalne) = bazowe maks. HP klasy; bez pola obowiązuje HERO.hp. Klasy wręcz mają 4:
+ * walczą w zasięgu ataków bossa i przy 3 HP ginęły ~2,5× częściej niż dystansowe (docs/decisions.md).
  */
 export const SKINS = {
   rycerz: {
     name: 'Rycerz',
     color: '#4fc3ff',
-    attack: { kind: 'melee', dmg: 17.5, cd: 1.8, range: 1.7, arc: 120 },
+    hp: 4,
+    attack: { kind: 'melee', dmg: 19, cd: 1.8, range: 1.7, arc: 120 },
     ability: { cd: 8, duration: 1.5, arc: 140, reflectDmg: 8 },
   },
   lucznik: {
@@ -88,8 +125,10 @@ export const SKINS = {
   lotrzyk: {
     name: 'Łotrzyk',
     color: '#c77dff',
+    hp: 4,
     attack: { kind: 'melee', dmg: 8.5, cd: 1.4, range: 1.4, arc: 60 },
-    ability: { cd: 10, range: 5, mult: 3, buffTime: 3 },
+    // mult 3 → 3,6: przy samych 4 HP Łotrzyk wygrywał ~11% meczów (4 graczy, Trudny); +20% do ataku dawało aż 48%
+    ability: { cd: 10, range: 5, mult: 3.6, buffTime: 3 },
   },
   kaplan: {
     name: 'Kapłan',
@@ -100,7 +139,8 @@ export const SKINS = {
   inzynier: {
     name: 'Inżynier',
     color: '#ff9f43',
-    attack: { kind: 'melee', dmg: 14, cd: 1.8, range: 1.5, arc: 90 },
+    hp: 4,
+    attack: { kind: 'melee', dmg: 16.5, cd: 1.8, range: 1.5, arc: 90 },
     ability: { cd: 15, life: 6, dmg: 5.5, fireEvery: 1.6, range: 8, speed: 18 },
   },
 };
@@ -115,7 +155,8 @@ Object.assign(SKINS, {
   barbarzynca: {
     name: 'Barbarzyńca',
     color: '#ff5a3c',
-    attack: { kind: 'melee', dmg: 12.5, cd: 2.0, range: 1.6, arc: 150 },
+    hp: 4,
+    attack: { kind: 'melee', dmg: 13.5, cd: 2.0, range: 1.6, arc: 150 },
     ability: { cd: 12, duration: 4, atkCdMul: 0.45, speedMul: 1.2 },
   },
   druid: {
@@ -128,7 +169,13 @@ Object.assign(SKINS, {
 
 export const SKIN_IDS = /** @type {const} */ (['rycerz', 'lucznik', 'lotrzyk', 'kaplan', 'inzynier', 'mag', 'barbarzynca', 'druid']);
 
-/** Bossy: telegraph w sekundach (zawsze 0.4..0.8). */
+/** Bazowe maks. HP klasy (bez ulepszeń): `SKINS[skin].hp`, a gdy klasa go nie podaje — HERO.hp. @param {string} skin */
+export const heroBaseHp = (skin) => /** @type {any} */ (SKINS)[skin]?.hp ?? HERO.hp;
+
+/**
+ * Bossy: telegraph w sekundach (zawsze 0.4..0.8).
+ * `aroundBoss: true` = strefa wokół samego bossa (jej `radius` to zasięg akcji — korzysta z tego bot, patrz bossAbilityReach).
+ */
 export const BOSSES = {
   kolos: {
     name: 'Kolos',
@@ -146,7 +193,7 @@ export const BOSSES = {
     name: 'Cień',
     color: '#b14dff',
     speedMul: 1.3,
-    hpMul: 0.7,
+    hpMul: 0.9,
     dmgTakenMul: 1,
     knockbackImmune: false,
     atk: { cd: 1.0, telegraph: 0.4, range: 2.5, arc: 90 },
@@ -177,7 +224,7 @@ export const BOSSES = {
     overloadArea: 1.5,
     atk: { cd: 1.1, telegraph: 0.4, speed: 16, range: 8, r: 0.22 },
     q: { cd: 4, telegraph: 0.6, radius: 2, range: 11 },
-    e: { cd: 11, telegraph: 0.5, radius: 6, duration: 2, pull: 3.6 },
+    e: { cd: 11, telegraph: 0.5, radius: 6, duration: 2, pull: 3.6, aroundBoss: true },
     r: { cd: 9, telegraph: 0.5, jumpRadius: 4, jumps: 4, range: 9 },
   },
 };
@@ -212,7 +259,7 @@ Object.assign(BOSSES, {
     knockbackImmune: false,
     passive: { slow: 0.3, duration: 1.5 },
     atk: { cd: 1.0, telegraph: 0.4, speed: 15, range: 9, r: 0.22 },
-    q: { cd: 7, telegraph: 0.6, radius: 4 },
+    q: { cd: 7, telegraph: 0.6, radius: 4, aroundBoss: true },
     e: { cd: 10, telegraph: 0.7, len: 10, width: 1.2, life: 3, slow: 0.5 },
     r: { cd: 15, telegraph: 0.8, radius: 5, range: 10, life: 4, tick: 1.5, slow: 0.4 },
   },
@@ -240,7 +287,7 @@ Object.assign(BOSSES, {
     passive: { healOnKill: 0.06 },
     atk: { cd: 1.4, telegraph: 0.5, range: 3.0, arc: 150 },
     q: { cd: 7, telegraph: 0.5, speed: 14, range: 18, r: 0.4 },
-    e: { cd: 11, telegraph: 0.6, radius: 5, knock: 10 },
+    e: { cd: 11, telegraph: 0.6, radius: 5, knock: 10, aroundBoss: true },
     r: { cd: 12, telegraph: 0.8, from: 11, duration: 1.2, width: 0.8 },
   },
 });
@@ -283,10 +330,34 @@ export const MODES = {
     preWave: 2.5,
     bossScore: 15,
     waveClearScore: 5,
+    /** na fali z bossem AI zabity bohater wraca po tylu sekundach (na zwykłych falach czeka „na ławce” do przerwy) */
+    bossWaveRespawn: 8,
   },
-  teams: { name: 'Bitwa bossów', hpMul: 4.5, respawnSide: true, teamNames: ['Niebieska', 'Czerwona'] },
-  bossrush: { name: 'Boss Rush', bosses: 8, hpGrowth: 0.3, cdShrink: 0.06, minCdMul: 0.6, respawn: 5, intermission: 12, killScore: 10 },
+  teams: { name: 'Bitwa bossów', hpMul: 4.5, respawnSide: true, teamNames: ['Niebieska', 'Czerwona'], killScore: 10 },
+  bossrush: {
+    name: 'Boss Rush',
+    bosses: 8,
+    hpGrowth: 0.3,
+    cdShrink: 0.06,
+    minCdMul: 0.6,
+    respawn: 5,
+    intermission: 12,
+    /** pauza (s) między wyborem ulepszeń a wejściem kolejnego bossa */
+    preBoss: 1.2,
+    killScore: 10,
+    /** „drugie szanse” drużyny wg liczby bohaterów: [1 bohater, 2, 3 i więcej] — patrz bossrushLives */
+    lives: [3, 2, 1],
+  },
 };
+
+/**
+ * Pula „drugich szans” w Boss Rush: ile razy cała drużyna może zginąć jednocześnie, zanim mecz się skończy.
+ * @param {number} heroes liczba bohaterów (ludzie i boty, bez bossa AI)
+ */
+export function bossrushLives(heroes) {
+  const table = MODES.bossrush.lives;
+  return table[Math.min(table.length, Math.max(1, Math.floor(heroes))) - 1];
+}
 
 /** Ulepszenia między falami / bossami. */
 export const UPGRADES = {
@@ -301,11 +372,13 @@ export const UPGRADE_IDS = /** @type {const} */ (['vit', 'dmg', 'cd', 'spd', 'da
 
 /** Poziomy trudności botów. */
 export const AI_LEVELS = {
-  // dodge: szansa, że bot w ogóle zauważy dany telegraf; reaction: ile s po pojawieniu się telegrafu zaczyna uciekać;
-  // dash: szansa użycia dasha przeciw danemu zagrożeniu; dashErr: rozrzut momentu dasha (s) — za wcześnie = trafienie.
-  easy: { name: 'Łatwy', aimErr: 1.8, dodge: 0.3, reaction: 0.45, dash: 0.2, dashErr: 0.35, ability: 0.4, attack: 0.65, bossAbility: 0.5 },
-  normal: { name: 'Normalny', aimErr: 0.8, dodge: 0.55, reaction: 0.3, dash: 0.4, dashErr: 0.25, ability: 0.8, attack: 0.9, bossAbility: 0.85 },
-  hard: { name: 'Trudny', aimErr: 0.2, dodge: 0.85, reaction: 0.15, dash: 0.75, dashErr: 0.12, ability: 1.4, attack: 1, bossAbility: 1.3 },
+  // dodge: szansa, że bot w ogóle zauważy dany telegraf (dla aktywnej strefy tykającej: szansa na każdy jej tick);
+  // reaction: ile s po pojawieniu się telegrafu zaczyna uciekać;
+  // dash: szansa użycia dasha przeciw danemu zagrożeniu; dashErr: rozrzut momentu dasha (s) — za wcześnie = trafienie;
+  // lead: wyprzedzenie celowania bossa-bota (s) — celuje w pozycję celu + prędkość × lead.
+  easy: { name: 'Łatwy', aimErr: 1.8, dodge: 0.3, reaction: 0.45, dash: 0.2, dashErr: 0.35, ability: 0.4, attack: 0.65, bossAbility: 0.5, lead: 0 },
+  normal: { name: 'Normalny', aimErr: 0.8, dodge: 0.55, reaction: 0.3, dash: 0.4, dashErr: 0.25, ability: 0.8, attack: 0.9, bossAbility: 0.85, lead: 0.15 },
+  hard: { name: 'Trudny', aimErr: 0.2, dodge: 0.85, reaction: 0.15, dash: 0.75, dashErr: 0.12, ability: 1.4, attack: 1, bossAbility: 1.3, lead: 0.35 },
 };
 
 /**

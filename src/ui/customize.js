@@ -6,7 +6,7 @@
 import { openModal, closeModal, esc } from './dom.js';
 import { SKINS, SKIN_IDS } from '../sim/config.js';
 import { cosmeticsOf, isAvailable } from '../sim/cosmetics.js';
-import { SKIN_TEXT } from './codex.js';
+import { SKIN_TEXT, roleLine } from './codex.js';
 import { heroPreview, cosmeticIcon, mount } from './previews.js';
 import { getProfile, setProfile } from './profile.js';
 import { getAchievements } from './achievements.js';
@@ -31,7 +31,7 @@ export function openCustomize(o = {}) {
         return `<div class="skin ${id === cur ? 'sel' : ''}" data-class="${id}" style="--c:${SKINS[id].color}" role="button" tabindex="0" aria-pressed="${id === cur}">
           <div class="skin-pv"></div>
           <span class="skin-name">${SKINS[id].name}</span>
-          <span class="role">${esc(t.role)}</span>
+          <span class="role">${esc(roleLine(id))}</span>
           <span class="line"><span class="k">Atak:</span> ${esc(t.attack)}</span>
           <span class="abil"><b>${esc(t.ability)}</b> <span class="cd">${t.cd} s</span><br />${esc(t.abilityDesc)}</span>
         </div>`;

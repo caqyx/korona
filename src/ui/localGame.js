@@ -2,6 +2,9 @@ import { createMatchState, step, cloneState } from '../sim/index.js';
 import { DT, MATCH } from '../sim/config.js';
 import { MAP_IDS } from '../sim/maps.js';
 
+/** Czas od końca meczu do ekranu podsumowania (ms) — w tym czasie HUD pokazuje baner zwycięzcy. */
+const END_DELAY_MS = 1500;
+
 /**
  * Tryb lokalny: 2–8 graczy (ludzie + boty) na jednym ekranie, bez sieci i Supabase.
  * @param {{slots:{id:string,nick:string,skin:string,device:{read:Function}}[], seed:number, targetScore?:number, speed?:number,
@@ -22,16 +25,29 @@ export function createLocalGame(opts, onEnd) {
   let acc = 0;
   let ended = false;
   let paused = false;
+  /** mecz porzucony (wyjście do menu) — żadnych dalszych kroków ani ekranu podsumowania */
+  let stopped = false;
+  let endTimer = /** @type {ReturnType<typeof setTimeout>|null} */ (null);
   const speed = opts.speed || 1;
+  const humans = opts.slots.filter((s) => s.device.kind !== 'bot').map((s) => s.id);
   return {
     state,
-    togglePause() {
-      paused = !paused;
+    /** @param {boolean} on */
+    setPaused(on) {
+      paused = !!on;
+    },
+    isPaused: () => paused,
+    isEnded: () => ended,
+    /** Porzuca mecz: zatrzymuje symulację i anuluje oczekujące podsumowanie. */
+    stop() {
+      stopped = true;
+      if (endTimer !== null) clearTimeout(endTimer);
+      endTimer = null;
     },
     /** @type {import('./gameView.js').FrameSource['frame']} */
     frame(dt) {
       const events = [];
-      if (!paused && !ended) {
+      if (!paused && !ended && !stopped) {
         acc += dt * speed;
         let n = 0;
         while (acc >= DT && n < 12 * speed) {
@@ -46,13 +62,15 @@ export function createLocalGame(opts, onEnd) {
           events.push(...state.events);
           if (state.phase === 'ended') {
             ended = true;
-            setTimeout(() => onEnd(cloneState(state)), 1500);
+            endTimer = setTimeout(() => {
+              endTimer = null;
+              if (!stopped) onEnd(cloneState(state));
+            }, END_DELAY_MS);
             break;
           }
         }
       }
-      const humans = opts.slots.filter((s) => s.device.kind !== 'bot').map((s) => s.id);
-      return { view: state, events, meIds: humans, overlay: paused ? 'PAUZA' : null };
+      return { view: state, events, meIds: humans, overlay: null };
     },
   };
 }

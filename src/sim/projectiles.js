@@ -3,6 +3,7 @@ import { nextId } from './state.js';
 import { hitsPillar, outsideArena } from './physics.js';
 import { bossRadius, hurtBoss, hurtHero, damageMinion, shieldBlocks, sameTeam, canHitMinion, heroesHostile } from './combat.js';
 import { SKINS } from './config.js';
+import { mergeKept } from './vec.js';
 
 /**
  * @typedef {Object} Projectile
@@ -37,7 +38,10 @@ export function spawnProjectile(state, p) {
 export function updateProjectiles(state, dt) {
   const keep = [];
   const bosses = state.players.filter((p) => p.boss && !p.boss.dying);
-  for (const pr of state.projectiles) {
+  const before = state.projectiles;
+  for (const pr of before) {
+    // lista podmieniona w trakcie pętli (śmierć bossa wyczyściła jego pociski): wyczyszczone już nie lecą
+    if (state.projectiles !== before && !state.projectiles.includes(pr)) continue;
     pr.x += pr.vx * dt;
     pr.y += pr.vy * dt;
     pr.traveled += Math.hypot(pr.vx, pr.vy) * dt;
@@ -48,7 +52,7 @@ export function updateProjectiles(state, dt) {
     const alive = pr.team === 'hero' ? heroProjectileHits(state, pr, bosses, owner) : bossProjectileHits(state, pr, bosses, owner);
     if (alive) keep.push(pr);
   }
-  state.projectiles = keep;
+  state.projectiles = mergeKept(before, state.projectiles, keep);
 }
 
 /** @returns {boolean} czy pocisk leci dalej */
@@ -89,7 +93,7 @@ function bossProjectileHits(state, pr, bosses, owner) {
     if (owner && sameTeam(owner, h)) continue;
     if (Math.hypot(pr.x - h.x, pr.y - h.y) > HERO.radius + pr.r) continue;
     const target = owner?.boss ? owner : bosses.find((b) => !sameTeam(b, h));
-    if (shieldBlocks(h, pr.x - pr.vx, pr.y - pr.vy) && target) {
+    if (shieldBlocks(h, pr.x - pr.vx, pr.y - pr.vy, owner) && target) {
       reflect(state, pr, h, target);
       return true;
     }

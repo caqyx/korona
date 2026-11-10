@@ -15,15 +15,16 @@ export function saveRecord(state) {
   if (!md || !state.mode || state.mode === 'crown') return false;
   const r = load();
   const value = state.mode === 'survival' ? md.wave : md.defeated;
+  // pierwszy wynik zapisujemy zawsze, ale „rekordem” jest dopiero wynik dodatni (0 pokonanych bossów to nie rekord)
   const prev = r[state.mode]?.value ?? -1;
-  if (value <= prev) return false;
+  if (!(value > prev)) return false;
   r[state.mode] = { value, at: Date.now() };
   try {
     localStorage.setItem(KEY, JSON.stringify(r));
   } catch {
     /* brak storage */
   }
-  return true;
+  return value > 0;
 }
 
 /** Tekst rekordu dla karty trybu. @param {string} mode */

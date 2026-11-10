@@ -1,6 +1,6 @@
-import { MATCH, HERO, SKIN_IDS } from './config.js';
+import { MATCH, SKIN_IDS, heroBaseHp } from './config.js';
 import { createRngState } from './rng.js';
-import { mapSpawnPoint } from './physics.js';
+import { mapSpawnPoint, mapStartPoints } from './physics.js';
 import { initMode } from './modes.js';
 import { sanitizeLook } from './cosmetics.js';
 
@@ -46,6 +46,7 @@ export const emptyInput = () => ({ moveX: 0, moveY: 0, aimX: 0, aimY: 0, buttons
  * @property {number} fx facing
  * @property {number} fy
  * @property {number} hp
+ * @property {number} maxHp   bazowe HP klasy + ulepszenia „+1 serce”
  * @property {boolean} alive
  * @property {number} respawnT
  * @property {number} invulnT
@@ -70,7 +71,10 @@ export const emptyInput = () => ({ moveX: 0, moveY: 0, aimX: 0, aimY: 0, buttons
  * @property {number} lastHits
  * @property {number} bossKills
  * @property {number} deaths
- * @property {number} dmgToBoss
+ * @property {number} dmgToBoss  roszczenie do korony w bieżącym panowaniu: świeże obrażenia + claim0
+ * @property {number} claim0     część dmgToBoss przeniesiona z poprzedniego panowania (0 = brak)
+ * @property {number} killAcc    reszta punktów za zabójstwa jako boss: liczba całkowita w jednostkach 1/SCORE.killUnits punktu
+ * @property {boolean} benched   martwy bez odliczania — wraca dopiero w przerwie (Przetrwanie) / gdy tryb go przywoła
  * @property {boolean} connected
  * @property {boolean} dnf
  * @property {BossState|null} boss
@@ -78,20 +82,23 @@ export const emptyInput = () => ({ moveX: 0, moveY: 0, aimX: 0, aimY: 0, buttons
 
 /**
  * @param {string} id @param {string} nick @param {string} skin @param {number} slot @param {string} [mapId]
+ * @param {[number, number]} [start] punkt startowy (domyślnie punkt odrodzenia nr `slot`)
  * @returns {Player}
  */
-export function createPlayer(id, nick, skin, slot, mapId) {
-  const [x, y] = spawnPoint(slot, mapId);
+export function createPlayer(id, nick, skin, slot, mapId, start = spawnPoint(slot, mapId)) {
+  const [x, y] = start;
+  const skinId = SKIN_IDS.includes(/** @type {any} */ (skin)) ? skin : 'rycerz';
+  const baseHp = heroBaseHp(skinId);
   return {
     id,
     nick: String(nick).slice(0, 16),
-    skin: SKIN_IDS.includes(/** @type {any} */ (skin)) ? skin : 'rycerz',
+    skin: skinId,
     slot,
     x,
     y,
     fx: -x / (Math.hypot(x, y) || 1),
     fy: -y / (Math.hypot(x, y) || 1),
-    hp: HERO.hp,
+    hp: baseHp,
     alive: true,
     respawnT: 0,
     invulnT: 0,
@@ -117,13 +124,17 @@ export function createPlayer(id, nick, skin, slot, mapId) {
     bossKills: 0,
     deaths: 0,
     dmgToBoss: 0,
+    claim0: 0,
+    killAcc: 0,
+    benched: false,
     connected: true,
     dnf: false,
     boss: null,
     /** prędkość (lód) */
     vx: 0,
     vy: 0,
-    maxHp: HERO.hp,
+    /** maks. HP bohatera: bazowe HP klasy (heroBaseHp) + ulepszenia „+1 serce” */
+    maxHp: baseHp,
     /** modyfikatory z ulepszeń (tryby z botami) */
     mods: { dmg: 1, cd: 1, spd: 1, dashCd: 1, range: 1 },
     ai: false,
@@ -131,6 +142,19 @@ export function createPlayer(id, nick, skin, slot, mapId) {
     revealT: 0,
     onIce: false,
   };
+}
+
+/** Maks. HP bohatera: pole `maxHp`, a w starszym stanie bez niego — bazowe HP klasy. @param {{maxHp?:number, skin:string}} p */
+export const heroMaxHp = (p) => p.maxHp ?? heroBaseHp(p.skin);
+
+/**
+ * Zmiana klasy (dozwolona tylko martwemu): bazowe HP nowej klasy zastępuje bazowe HP starej,
+ * a serca z ulepszeń zostają.
+ * @param {{maxHp?:number, skin:string}} p @param {string} skin
+ */
+export function changeSkin(p, skin) {
+  p.maxHp = heroMaxHp(p) + heroBaseHp(skin) - heroBaseHp(p.skin);
+  p.skin = skin;
 }
 
 /** @param {number} i */
@@ -160,8 +184,11 @@ export function createMatchState(opts) {
 
 /** @param {MatchOptions} opts */
 function createBaseState(opts) {
-  const players = opts.players.slice(0, opts.maxPlayers ?? (opts.mode === 'teams' ? 10 : MATCH.maxPlayers)).map((p, i) => {
-    const pl = createPlayer(p.id, p.nick, p.skin, i, opts.mapId ?? 'arena');
+  const mapId = opts.mapId ?? 'arena';
+  const specs = opts.players.slice(0, opts.maxPlayers ?? (opts.mode === 'teams' ? 10 : MATCH.maxPlayers));
+  const starts = mapStartPoints(specs.length, mapId);
+  const players = specs.map((p, i) => {
+    const pl = createPlayer(p.id, p.nick, p.skin, i, mapId, starts[i]);
     if (opts.mode === 'teams') {
       pl.team = /** @type {any} */ (p).team === 1 ? 1 : 0;
       pl.wantsBoss = !!(/** @type {any} */ (p).wantsBoss);
@@ -171,7 +198,7 @@ function createBaseState(opts) {
   });
   return {
     v: 1,
-    mapId: opts.mapId ?? 'arena',
+    mapId,
     tick: 0,
     time: 0,
     matchTime: 0,

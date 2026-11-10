@@ -12,7 +12,7 @@ export function aimPoint(h, input, range) {
   return [h.x + (dx / d) * range, h.y + (dy / d) * range];
 }
 
-/** Meteor: po 0,7 s spada w wybrany punkt (do 8 m), 26 obrażeń w promieniu 1,6 m (boss i miniony). */
+/** Meteor: po 0,7 s spada w wybrany punkt (do 8 m), ability.dmg obrażeń w promieniu 1,6 m (boss i miniony). */
 export const mag = {
   /** @param {any} state @param {any} h @param {any} input */
   start(state, h, input) {

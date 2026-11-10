@@ -39,8 +39,8 @@ export function updateHazards(state, dt) {
       p.hazT = (p.hazT ?? 0.4) - dt;
       if (p.hazT <= 0) {
         p.hazT = HAZARD.lava.every;
-        // źródło „pod stopami”: od tyłu, żeby tarcza nie blokowała
-        if (hurtHero(state, p, HAZARD.lava.dmg, null, p.x - p.fx, p.y - p.fy)) state.events.push({ t: 'burn', id: p.id, x: p.x, y: p.y });
+        // źródło „pod stopami” i bez gracza-źródła: tarcza Rycerza tego nie blokuje (patrz shieldBlocks)
+        if (hurtHero(state, p, HAZARD.lava.dmg, null, p.x, p.y)) state.events.push({ t: 'burn', id: p.id, x: p.x, y: p.y });
       }
     } else p.hazT = 0.4;
     if (wasHidden !== p.hidden && !p.boss) state.events.push({ t: p.hidden ? 'hide' : 'unhide', id: p.id });

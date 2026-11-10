@@ -19,10 +19,10 @@ import { createKeyboardMouse } from '../input/keyboard.js';
 import { createBotDevice } from '../input/bot.js';
 import { isTouchDevice } from '../input/touch.js';
 import { keepAwake } from './pwa.js';
-import { SKIN_TEXT } from './codex.js';
+import { SKIN_TEXT, roleLine } from './codex.js';
 import { heroPreview, mount } from './previews.js';
 
-/** @param {{gameView:any, nickInput:HTMLInputElement, touchRoot:HTMLElement, getTouch:()=>any, params:URLSearchParams, backToMenu:()=>void}} ctx */
+/** @param {{gameView:any, nickInput:HTMLInputElement, touchRoot:HTMLElement, getTouch:()=>any, params:URLSearchParams, backToMenu:()=>void, onMatchMenuClose?:()=>void, onMatchRecorded?:Function}} ctx */
 export function startOnlineUi(ctx) {
   const { params } = ctx;
   const useSupabase = hasSupabaseConfig() && params.get('transport') !== 'local';
@@ -31,6 +31,8 @@ export function startOnlineUi(ctx) {
   let device = null;
   let skin = params.get('skin') && SKIN_IDS.includes(/** @type {any} */ (params.get('skin'))) ? params.get('skin') : 'rycerz';
   let busy = false;
+  /** trwa mecz online (od matchStart do matchEnd / powrotu do lobby / wyjścia) */
+  let inMatch = false;
 
   const msg = (t) => ($('#start-msg').textContent = t);
 
@@ -119,6 +121,24 @@ export function startOnlineUi(ctx) {
     }
   }
 
+  /**
+   * Jedyna ścieżka wyjścia z pokoju (lobby, podsumowanie, menu meczu): zamyka ogłoszenie pokoju,
+   * opuszcza sesję (pozostali widzą gracza jako DNF) i wraca do menu głównego.
+   */
+  async function leaveRoom() {
+    const s = session;
+    session = null;
+    inMatch = false;
+    document.body.dataset.inMatch = '0';
+    directory?.close();
+    directory = null;
+    try {
+      await s?.leave();
+    } finally {
+      ctx.backToMenu();
+    }
+  }
+
   function wireSession(s, code) {
     $('#room-code').textContent = code;
     window.__korona = {
@@ -132,6 +152,9 @@ export function startOnlineUi(ctx) {
       announce(info);
     });
     s.on('lobby', (info) => {
+      inMatch = false;
+      document.body.dataset.inMatch = '0';
+      ctx.onMatchMenuClose?.();
       ctx.gameView.setSource(null);
       ctx.touchRoot.classList.add('hidden');
       setOverlay(null);
@@ -140,15 +163,18 @@ export function startOnlineUi(ctx) {
     });
     s.on('matchStart', () => {
       announce({ ...s.lobbyInfo(), phase: 'match' });
-      ctx.gameView.cam.mode = 'follow';
+      ctx.gameView.setCamera({ local: false, solo: true, device: device?.kind ?? null });
       ctx.gameView.setSource({ frame: () => s.frame() });
       ctx.touchRoot.classList.toggle('hidden', device?.kind !== 'touch');
       document.body.dataset.inMatch = '1';
+      inMatch = true;
       keepAwake(true);
       showScreen(null);
     });
     s.on('matchEnd', ({ state, saved, isOwner }) => {
       document.body.dataset.inMatch = '0';
+      inMatch = false;
+      ctx.onMatchMenuClose?.();
       ctx.onMatchRecorded?.(state, s.selfId, { online: true });
       keepAwake(false);
       ctx.touchRoot.classList.add('hidden');
@@ -157,13 +183,7 @@ export function startOnlineUi(ctx) {
         canRematch: isOwner,
         msg: (isOwner ? '' : 'Rewanż uruchamia właściciel pokoju. ') + note,
         onRematch: () => s.rematch(),
-        onBack: async () => {
-          await s.leave();
-          session = null;
-          directory?.close();
-          directory = null;
-          ctx.backToMenu();
-        },
+        onBack: leaveRoom,
       });
     });
   }
@@ -204,7 +224,7 @@ export function startOnlineUi(ctx) {
       return `<div class="skin ${id === skin ? 'sel' : ''}" data-skin="${id}" style="--c:${SKINS[id].color}" role="button" tabindex="0" aria-pressed="${id === skin}">
           <div class="skin-pv"></div>
           <span class="skin-name">${SKINS[id].name}</span>
-          <span class="role">${esc(t.role)}</span>
+          <span class="role">${esc(roleLine(id))}</span>
           <span class="line"><span class="k">Atak:</span> ${esc(t.attack)}</span>
           <span class="abil"><b>${esc(t.ability)}</b> <span class="cd">${t.cd} s</span><br />${esc(t.abilityDesc)}</span>
         </div>`;
@@ -248,13 +268,7 @@ export function startOnlineUi(ctx) {
     const r = session?.requestStart();
     $('#lobby-msg').textContent = r && !r.ok ? r.reason : '';
   };
-  $('#btn-leave').onclick = async () => {
-    directory?.close();
-    directory = null;
-    await session?.leave();
-    session = null;
-    ctx.backToMenu();
-  };
+  $('#btn-leave').onclick = leaveRoom;
   $('#btn-copy').onclick = async () => {
     const code = $('#room-code').textContent || '';
     const url = `${location.origin}${location.pathname}?join=${code}`;
@@ -266,7 +280,7 @@ export function startOnlineUi(ctx) {
       $('#lobby-msg').textContent = `Kod: ${code}`;
     }
   };
-  return { enter };
+  return { enter, leave: leaveRoom, inMatch: () => inMatch };
 }
 
 function randomId() {

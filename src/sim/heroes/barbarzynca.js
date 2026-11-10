@@ -2,7 +2,7 @@ import { SKINS } from '../config.js';
 
 const A = SKINS.barbarzynca.ability;
 
-/** Szał: przez 4 s ataki ponad 2× szybciej i +20% prędkości ruchu. */
+/** Szał: przez 4 s ataki ponad 2× szybciej i +20% prędkości ruchu. Licznik biegnie także podczas ogłuszenia. */
 export const barbarzynca = {
   /** @param {any} state @param {any} h */
   start(state, h) {

@@ -2,6 +2,11 @@
  * „Soczystość”: cząsteczki (piksele), drżenie ekranu, hit-stop, błyski trafień, liczby obrażeń,
  * smugi dashu, cięcia broni, kill feed. Czysto wizualne — nie wpływa na symulację.
  */
+import { SCORE, MODES, BOSSES, UPGRADES } from '../sim/config.js';
+
+/** Baner końca meczu żyje dłużej niż okno 1,5 s do podsumowania (znika razem z meczem). */
+const END_BANNER_TIME = 4;
+
 export function createFx() {
   return {
     /** @type {{x:number,y:number,vx:number,vy:number,life:number,max:number,color:string,size:number,g:number}[]} */
@@ -23,12 +28,58 @@ export function createFx() {
     shake: 0,
     hitStop: 0,
     redFlash: 0,
-    banner: /** @type {null|{text:string,sub:string,life:number}} */ (null),
+    /** aktualnie pokazywany baner (górna część ekranu) i kolejka następnych */
+    banner: /** @type {Banner|null} */ (null),
+    /** @type {Banner[]} */
+    banners: [],
+    /** blokada ponownego błysku trafienia per id (sekundy) — boss bity przez wielu nie jest stale biały */
+    flashLock: /** @type {Record<string, number>} */ ({}),
+    /** błysk chipu wyniku per id gracza (sekundy) */
+    chipFlash: /** @type {Record<string, number>} */ ({}),
+    /** puls znacznika własnej postaci per id (start meczu, odrodzenie) */
+    mark: /** @type {Record<string, number>} */ ({}),
+    /** błysk licznika „drugich szans” po utracie jednej (Boss Rush), sekundy */
+    lifeFlash: 0,
+    /** błysk slotu umiejętności po odnowieniu, klucz `${id}:${slot}` (sekundy) */
+    cdFlash: /** @type {Record<string, number>} */ ({}),
+    /** kto zabił lokalnego gracza (do panelu śmierci): id ofiary -> opis zabójcy */
+    killedBy: /** @type {Record<string, {name:string,color:string}>} */ ({}),
+    /** pamięć śledzenia wyścigu obrażeń itp. (render/feedback.js) */
+    track: /** @type {any} */ (null),
   };
 }
 
+/** @typedef {{text:string, sub:string, color:string, life:number, max:number, dim:boolean}} Banner */
+
+/** Czas życia zwykłego banera (s) — krótko, żeby nie zasłaniał walki. */
+const BANNER_TIME = 1.2;
+/** Najwięcej banerów czekających w kolejce (starsze, nieaktualne, wypadają). */
+const BANNER_QUEUE_MAX = 3;
+/** Czasy błysków (s). */
+const BOSS_FLASH = 0.08;
+const BOSS_FLASH_LOCK = 0.22;
+export const CHIP_FLASH = 0.6;
+export const MARK_PULSE = 1.4;
+export const CD_FLASH = 0.25;
+export const LIFE_FLASH = 1.2;
+
+/**
+ * Dodaje baner do kolejki (pokazywane po kolei, nie nadpisują się).
+ * @param {ReturnType<typeof createFx>} fx @param {string} text
+ * @param {{sub?:string, color?:string, time?:number, dim?:boolean}} [o]
+ */
+export function pushBanner(fx, text, o = {}) {
+  const time = o.time ?? BANNER_TIME;
+  const b = { text, sub: o.sub ?? '', color: o.color ?? '#ffd23f', life: time, max: time, dim: !!o.dim };
+  if (!fx.banner) fx.banner = b;
+  else {
+    fx.banners.push(b);
+    if (fx.banners.length > BANNER_QUEUE_MAX) fx.banners.shift();
+  }
+}
+
 /** @param {ReturnType<typeof createFx>} fx */
-export function burst(fx, x, y, color, n = 10, speed = 6, size = 1, gravity = 0) {
+function burst(fx, x, y, color, n = 10, speed = 6, size = 1, gravity = 0) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2;
     const s = speed * (0.3 + Math.random());
@@ -38,31 +89,109 @@ export function burst(fx, x, y, color, n = 10, speed = 6, size = 1, gravity = 0)
   if (fx.parts.length > 700) fx.parts.splice(0, fx.parts.length - 700);
 }
 
+/** Napis w świecie (liczba obrażeń, „+N”, nazwa ulepszenia), unoszący się i gasnący. */
 function addText(fx, x, y, text, color, big = false) {
   fx.texts.push({ x: x + (Math.random() - 0.5) * 0.6, y, text, life: big ? 1.3 : 0.8, max: big ? 1.3 : 0.8, color, big });
   if (fx.texts.length > 60) fx.texts.shift();
 }
 
-function addFeed(fx, text, color) {
+export function addFeed(fx, text, color) {
   fx.feed.unshift({ text, color, life: 5 });
   if (fx.feed.length > 5) fx.feed.length = 5;
+}
+
+/** Punkty za przejęcie korony / pokonanie bossa w bieżącym trybie. @param {any} state */
+function lastHitPoints(state) {
+  if (state.mode === 'survival') return MODES.survival.bossScore;
+  if (state.mode === 'bossrush') return MODES.bossrush.killScore;
+  return SCORE.lastHit;
+}
+
+/** „+N” nad graczem, który właśnie dostał punkty, i błysk jego chipu wyniku. @param {any} p @param {number} pts */
+function scorePopup(fx, p, pts) {
+  if (!p || !(pts > 0)) return;
+  addText(fx, p.x, p.y - (p.boss ? 3.4 : 2.4), `+${pts}`, '#ffd23f', true);
+  fx.chipFlash[p.id] = CHIP_FLASH;
+}
+
+/** „+N” dla bossa-gracza za pokonanego bohatera; boss AI (Przetrwanie, Boss Rush) nie zbiera punktów. @param {any} killer */
+function heroKillPopup(fx, killer, pts) {
+  if (killer && !killer.ai) scorePopup(fx, killer, pts);
+}
+
+/** Boss Rush: drużyna straciła „drugą szansę” — baner, czerwony błysk i miganie licznika. @param {{left?:number}} e */
+function lifeLostFx(fx, e, sound) {
+  const left = e.left;
+  const sub = !Number.isFinite(left) ? 'Wszyscy polegli' : left > 0 ? `Wszyscy polegli — zostało szans: ${left}` : 'Wszyscy polegli — to była ostatnia';
+  pushBanner(fx, 'DRUGA SZANSA!', { sub, color: '#ff5470', time: 1.6 });
+  fx.lifeFlash = LIFE_FLASH;
+  fx.redFlash = Math.max(fx.redFlash, 0.3);
+  fx.shake = Math.min(4, fx.shake + 2);
+  sound('lowhp');
+}
+
+/** Wybuch, krąg i hit-stop w miejscu pokonanego bossa. @param {any} boss @param {(n:string)=>void} sound */
+function bossDeathFx(fx, boss, sound) {
+  if (!boss) return;
+  burst(fx, boss.x, boss.y, '#ffffff', 40, 10, 2);
+  burst(fx, boss.x, boss.y, '#ffd23f', 30, 7, 2);
+  fx.rings.push({ x: boss.x, y: boss.y, r: 0, max: 5, life: 0.45, total: 0.45, color: '#ffd23f' });
+  fx.shake = 4;
+  fx.hitStop = Math.max(fx.hitStop, 0.12);
+  sound('bossDie');
+}
+
+/** Zapamiętuje zabójcę lokalnego gracza (panel śmierci w HUD). @param {any} e @param {any} killer */
+function noteKiller(fx, e, killer, colorOf, meIds) {
+  if (!meIds.includes(e.id)) return;
+  if (!killer) delete fx.killedBy[e.id];
+  else fx.killedBy[e.id] = { name: killer.boss ? `${BOSSES[killer.boss.type]?.name ?? 'Boss'} (${killer.nick})` : killer.nick, color: colorOf(killer.id) };
+}
+
+/** Baner końca meczu (z przyciemnieniem) — widoczny do pojawienia się podsumowania. @param {any} e @param {any} state */
+function endBanner(fx, e, state) {
+  const winner = state.players.find((p) => p.id === e.winner);
+  const who = state.mode === 'teams' ? `DRUŻYNA ${state.winnerTeam === 1 ? 'CZERWONA' : 'NIEBIESKA'}` : winner?.nick;
+  const o = { time: END_BANNER_TIME, dim: true };
+  fx.banner = null;
+  fx.banners.length = 0;
+  if (e.reason === 'wipe') pushBanner(fx, 'KONIEC', { ...o, sub: 'Wszyscy bohaterowie polegli', color: '#ff5470' });
+  else if (e.reason === 'victory') pushBanner(fx, 'ZWYCIĘSTWO!', o);
+  else if (e.reason === 'time') pushBanner(fx, 'KONIEC CZASU', { ...o, sub: who ? `Wygrywa ${who}` : '' });
+  else pushBanner(fx, who ? `WYGRYWA ${who}` : 'KONIEC MECZU', o);
+}
+
+/** Krąg w kolorze gracza i nazwa ulepszenia nad jego głową. @param {any} p @param {string} upg */
+function upgradeFx(fx, p, upg, colorOf) {
+  if (!p) return;
+  const c = colorOf(p.id);
+  fx.rings.push({ x: p.x, y: p.y, r: 0, max: 2.2, life: 0.5, total: 0.5, color: c });
+  burst(fx, p.x, p.y, c, 12, 4);
+  const name = /** @type {any} */ (UPGRADES)[upg]?.name;
+  if (name) addText(fx, p.x, p.y - 2.4, name, c, true);
 }
 
 /**
  * Zamienia zdarzenia symulacji na efekty, dźwięk i haptykę.
  * @param {ReturnType<typeof createFx>} fx @param {any[]} events @param {any} state @param {string|null} meId
  * @param {(id:string)=>string} colorOf
- * @param {{sound?:(name:string)=>void, vibrate?:(p:number|number[])=>void}} [out]
+ * @param {{sound?:(name:string)=>void, vibrate?:(p:number|number[])=>void, meIds?:string[]}} [out]
+ *   `meIds` — wszyscy lokalni ludzie (wspólny ekran); domyślnie sam `meId`
  */
 export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
   const sound = out.sound || (() => {});
   const vib = out.vibrate || (() => {});
-  const nick = (id) => state.players.find((p) => p.id === id)?.nick ?? '?';
+  const meIds = out.meIds || (meId ? [meId] : []);
+  const find = (id) => state.players.find((p) => p.id === id);
+  const nick = (id) => find(id)?.nick ?? '?';
   for (const e of events) {
     switch (e.t) {
       case 'bossHit':
         burst(fx, e.x + (Math.random() - 0.5), e.y - 0.6 + (Math.random() - 0.5), colorOf(e.by), 5, 6);
-        fx.flash[e.id] = 0.08;
+        if (!(fx.flashLock[e.id] > 0)) {
+          fx.flash[e.id] = BOSS_FLASH;
+          fx.flashLock[e.id] = BOSS_FLASH_LOCK;
+        }
         addText(fx, e.x, e.y - 1.8, String(Math.round(e.dmg)), e.dmg >= 20 ? '#ffd23f' : '#ffffff', e.dmg >= 20);
         if (e.by === meId) {
           fx.hitStop = Math.max(fx.hitStop, e.dmg >= 20 ? 0.07 : 0.035);
@@ -72,6 +201,7 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
       case 'heroHit':
         burst(fx, e.x, e.y, '#ff5470', 10, 7);
         fx.flash[e.id] = 0.18;
+        addText(fx, e.x, e.y - 1.6, '-1', '#ff8fa3');
         fx.shake = Math.min(3, fx.shake + 1.2);
         if (e.id === meId) {
           fx.redFlash = 0.3;
@@ -84,7 +214,9 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
         burst(fx, e.x, e.y, colorOf(e.id), 26, 9, 2);
         burst(fx, e.x, e.y, '#ffffff', 10, 4);
         fx.shake = Math.min(4, fx.shake + 2);
-        if (e.by) addFeed(fx, `${nick(e.by)} ☠ ${nick(e.id)}`, '#ff8fa3');
+        if (e.by && find(e.by)) addFeed(fx, `${nick(e.by)} ☠ ${nick(e.id)}`, '#ff8fa3');
+        noteKiller(fx, e, find(e.by), colorOf, meIds);
+        heroKillPopup(fx, find(e.by), e.pts);
         if (e.id === meId) vib([60, 40, 90]);
         sound('die');
         break;
@@ -145,18 +277,23 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
         sound('crown');
         break;
       case 'lastHit':
-        addFeed(fx, `${nick(e.id)} — najwięcej obrażeń (${e.pct ?? '?'}%) +10`, '#ffd23f');
+        addFeed(fx, `${nick(e.id)} — najwięcej obrażeń (${e.pct ?? '?'}%) +${lastHitPoints(state)}`, '#ffd23f');
+        scorePopup(fx, find(e.id), lastHitPoints(state));
+        // tryb korony nie emituje `bossDie` — śmierć bossa pokazujemy tutaj, w miejscu starego bossa
+        if (!state.mode || state.mode === 'crown') bossDeathFx(fx, find(e.boss), sound);
         if (e.id === meId) vib([30, 30, 60]);
         sound('lastHit');
         break;
       case 'assist':
-        addFeed(fx, `${nick(e.id)} — asysta +2`, '#9be7ff');
+        addFeed(fx, `${nick(e.id)} — asysta +${SCORE.assist}`, '#9be7ff');
+        scorePopup(fx, find(e.id), SCORE.assist);
         break;
       case 'minionDie':
         burst(fx, e.x, e.y, '#e8e8e8', 10, 4);
         break;
       case 'respawn':
         burst(fx, e.x, e.y, '#ffffff', 14, 3);
+        if (meIds.includes(e.id)) fx.mark[e.id] = MARK_PULSE;
         if (e.id === meId) sound('respawn');
         break;
       case 'crownDrop':
@@ -166,9 +303,12 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
         addFeed(fx, `${nick(e.id)} opuścił mecz`, '#888');
         break;
       case 'matchEnd':
+        endBanner(fx, e, state);
         sound('win');
         break;
       case 'go':
+        pushBanner(fx, 'START!', { time: 0.9 });
+        for (const id of meIds) fx.mark[id] = MARK_PULSE;
         sound('go');
         break;
       case 'wave':
@@ -191,7 +331,11 @@ export function applyEvents(fx, events, state, meId, colorOf, out = {}) {
         break;
       case 'upgrade':
       case 'upgradeAuto':
+        upgradeFx(fx, find(e.id), e.upg, colorOf);
         sound('pickup');
+        break;
+      case 'lifeLost':
+        lifeLostFx(fx, e, sound);
         break;
       case 'burn':
         burst(fx, e.x, e.y, '#ff8a3d', 8, 3);
@@ -227,15 +371,25 @@ export function updateFx(fx, dt) {
   fx.ghosts = fx.ghosts.filter((b) => b.life > 0);
   fx.rings = fx.rings.filter((b) => b.life > 0);
   fx.feed = fx.feed.filter((b) => b.life > 0);
-  for (const k of Object.keys(fx.flash)) {
-    fx.flash[k] -= dt;
-    if (fx.flash[k] <= 0) delete fx.flash[k];
-  }
+  decayTimers(fx.flash, dt);
+  decayTimers(fx.flashLock, dt);
+  decayTimers(fx.chipFlash, dt);
+  decayTimers(fx.mark, dt);
+  decayTimers(fx.cdFlash, dt);
   fx.shake = Math.max(0, fx.shake - dt * 10);
   fx.hitStop = Math.max(0, fx.hitStop - dt);
   fx.redFlash = Math.max(0, fx.redFlash - dt);
+  fx.lifeFlash = Math.max(0, fx.lifeFlash - dt);
   if (fx.banner) {
     fx.banner.life -= dt;
-    if (fx.banner.life <= 0) fx.banner = null;
+    if (fx.banner.life <= 0) fx.banner = fx.banners.shift() ?? null;
+  }
+}
+
+/** Odlicza słownik liczników i usuwa wygasłe. @param {Record<string, number>} timers @param {number} dt */
+function decayTimers(timers, dt) {
+  for (const k in timers) {
+    timers[k] -= dt;
+    if (timers[k] <= 0) delete timers[k];
   }
 }

@@ -6,7 +6,7 @@ import { MSG, envelope } from './messages.js';
 import { createLinkManager } from './signaling.js';
 import { createHostLoop } from './host.js';
 import { createClientLoop } from './client.js';
-import { electHost, rankPeers, successorOf, resolveClaim, shouldPlannedMigrate, createStepMonitor, hostLost, MIGRATION } from './election.js';
+import { electHost, rankPeers, successorOf, resolveClaim, shouldPlannedMigrate, createStepMonitor, hostLost, unplannedAction, MIGRATION } from './election.js';
 import { createMatchState, cloneState } from '../sim/state.js';
 import { disconnectPlayer } from '../sim/rules.js';
 import { makeRng } from '../sim/rng.js';
@@ -19,6 +19,13 @@ import { sanitizeLook } from '../sim/cosmetics.js';
  *   nick:string, skin:string, deviceScore:number, isOwner:boolean, iceServers:RTCIceServer[], forceRelay?:boolean,
  *   readInput:(view:any, me:any)=>any, speed?:number, targetScore?:number, now?:()=>number}} o
  */
+/** Okres monitora łącza (ms). */
+const MONITOR_MS = 200;
+/** Monitor spóźniony o więcej niż tyle okresów = nasz własny wątek stał (długi kadr, GC, dławiona karta). */
+const SELF_STALL_PERIODS = 3;
+/** Karencja na pierwszy snapshot po START (ms): host i klient dopiero ładują pierwszy kadr meczu. */
+const START_GRACE_MS = 6000;
+
 export function createSession(o) {
   const t = o.transport;
   const self = t.selfId;
@@ -40,6 +47,11 @@ export function createSession(o) {
   let client = /** @type {ReturnType<typeof createClientLoop>|null} */ (null);
   let migrating = false;
   let migrationTimer = /** @type {any} */ (0);
+  /** host uznany za utraconego, dopóki nikt nie przejął roli (do odwołania fałszywego alarmu) */
+  let pendingLoss = /** @type {string|null} */ (null);
+  /** do kiedy brak snapshotów po START nie jest jeszcze „utratą hosta” */
+  let startGraceUntil = 0;
+  let lastMonitorAt = now();
   let resumeTimer = /** @type {any} */ (0);
   let hellos = new Set();
   let hiddenSince = /** @type {number|null} */ (null);
@@ -124,6 +136,7 @@ export function createSession(o) {
     match = { id: m.payload.matchId, epoch: m.payload.epoch, hostId: m.payload.hostId, players: m.payload.state.players.map((p) => p.id), startedAt: Date.now(), finalState: null };
     links.setEpoch(match.epoch);
     becomeClient(m.payload.hostId, m.payload.state);
+    startGraceUntil = now() + START_GRACE_MS;
     enterMatch();
     note('start as client of ' + m.payload.hostId);
   }
@@ -202,6 +215,7 @@ export function createSession(o) {
       case MSG.SNAPSHOT:
         if (role === 'client' && client && match && m.from === match.hostId && m.payload.epoch === match.epoch) {
           client.pushSnapshot(m.payload.state);
+          startGraceUntil = 0;
           if (m.payload.state.phase === 'ended' && phase !== 'ended') onMatchEnd(m.payload.state, false);
         }
         return;
@@ -248,6 +262,7 @@ export function createSession(o) {
       match.hostId = claim.hostId;
       links.setEpoch(claim.epoch);
       clearTimeout(migrationTimer);
+      pendingLoss = null;
       migrating = true;
       overlay = 'Migracja hosta…';
       becomeClient(claim.hostId, keepState);
@@ -279,10 +294,20 @@ export function createSession(o) {
       if (id !== self && !presence.some((p) => p.userId === id)) disconnectPlayer(s, id);
     }
     hellos = new Set();
-    migrating = true;
-    overlay = 'Migracja hosta…';
+    pendingLoss = null;
     becomeHostLoop(s, true, 0);
     t.send(envelope(MSG.HOST_CLAIM, self, { epoch, hostId: self, tick: s.tick }));
+    if (s.phase === 'ended') {
+      // odejście hosta zakończyło mecz (np. walkower 1 na 1): pętla hosta startuje już „po końcu”
+      // i nie wywoła onEnd — podsumowanie trzeba pokazać stąd, bez odliczania wznowienia
+      migrating = false;
+      overlay = null;
+      host?.forceSnapshot();
+      onMatchEnd(s, true);
+      return;
+    }
+    migrating = true;
+    overlay = 'Migracja hosta…';
     clearTimeout(resumeTimer);
     resumeTimer = setTimeout(() => startResume(unplanned), unplanned ? MIGRATION.helloWaitMs : 2000);
     resumeWanted = unplanned;
@@ -344,6 +369,7 @@ export function createSession(o) {
     if (!match || !client) return;
     const oldHost = match.hostId;
     migrating = true;
+    pendingLoss = oldHost;
     overlay = 'Migracja hosta…';
     const exclude = [oldHost, ...excluded];
     const alive = match.players.filter((id) => !exclude.includes(id));
@@ -357,8 +383,28 @@ export function createSession(o) {
     }
     clearTimeout(migrationTimer);
     migrationTimer = setTimeout(() => {
-      if (match && match.hostId === oldHost) beginUnplanned('successor-timeout', [...excluded, succ]);
+      if (match && match.hostId === oldHost && pendingLoss === oldHost) beginUnplanned('successor-timeout', [...excluded, succ]);
     }, 3500);
+  }
+
+  /** Stan łącza z hostem widziany przez klienta (null = host jest). */
+  function hostLossReason(tnow) {
+    if (!client || !match) return null;
+    const lost = hostLost({ lastSnapshotAt: client.lastSnapshotAt, now: tnow, hostInPresence: presence.some((p) => p.userId === match?.hostId), channelClosed: false });
+    return lost === 'timeout' && tnow < startGraceUntil ? null : lost;
+  }
+
+  /**
+   * Fałszywy alarm: host, którego uznaliśmy za utraconego, znów jest w Presence i nadaje snapshoty
+   * (chwilowy zator CPU/sieci), a nikt jeszcze nie przejął roli. Odwołujemy migrację zamiast
+   * eskalować do kolejnego następcy, który oznaczyłby zdrowego hosta jako DNF.
+   */
+  function cancelFalseLoss() {
+    note('host back; migration cancelled');
+    clearTimeout(migrationTimer);
+    pendingLoss = null;
+    migrating = false;
+    overlay = null;
   }
 
   /** Planowana: host słabnie — przekazuje stan następcy. @param {string} reason */
@@ -393,11 +439,18 @@ export function createSession(o) {
   }
 
   const monitor = setInterval(() => {
-    if (phase !== 'match' || !match) return;
     const tnow = now();
-    if (role === 'client' && client && !migrating) {
-      const lost = hostLost({ lastSnapshotAt: client.lastSnapshotAt, now: tnow, hostInPresence: presence.some((p) => p.userId === match?.hostId), channelClosed: false });
-      if (lost) beginUnplanned(lost);
+    // własny wątek stał: zaległe snapshoty czekają w kolejce zdarzeń ZA tym timerem, więc „cisza” hosta
+    // jest pozorna — odświeżamy znacznik zamiast ogłaszać utratę hosta (w 1 na 1 oznaczałaby walkower)
+    const selfStalled = tnow - lastMonitorAt > MONITOR_MS * SELF_STALL_PERIODS;
+    lastMonitorAt = tnow;
+    if (phase !== 'match' || !match) return;
+    if (role === 'client' && client) {
+      if (selfStalled) client.touch();
+      const lost = hostLossReason(tnow);
+      const action = unplannedAction({ lost, migrating, pendingLoss, hostId: match.hostId });
+      if (action === 'begin') beginUnplanned(/** @type {string} */ (lost));
+      else if (action === 'cancel') cancelFalseLoss();
     }
     if (role === 'host' && host) {
       checkAbsent();
@@ -416,7 +469,7 @@ export function createSession(o) {
         if (why) plannedHandoff(why);
       }
     }
-  }, 200);
+  }, MONITOR_MS);
 
   const onVisibility = () => {
     const hidden = isHidden();
@@ -453,6 +506,8 @@ export function createSession(o) {
     phase = 'lobby';
     overlay = null;
     migrating = false;
+    pendingLoss = null;
+    clearTimeout(migrationTimer);
     links.closeAll();
     me.status = 'lobby';
     me.ready = false;

@@ -35,7 +35,7 @@ Korona pojawia się na środku areny. Pierwszy bohater, który jej dotknie, zost
 | Każda sekunda w koronie | +1 |
 | Zabicie bohatera jako boss | +3 |
 | Ostatni cios w bossa (przejęcie korony) | +10 |
-| Zadanie ≥25% obrażeń bossowi, ale bez ostatniego ciosu (asysta) | +2 |
+| Zadanie w tym panowaniu świeżych obrażeń ≥ min(25%, 75% / liczba bohaterów) HP bossa, bez przejęcia korony (asysta) | +2 |
 
 ### Przejęcie korony
 1. HP bossa spada do 0, a ostatnie trafienie należy do bohatera X.
@@ -56,7 +56,7 @@ Jeśli boss się rozłączy, korona upada na środek areny i działa tak jak na 
 
 ## 3. Bohaterowie (skiny)
 
-**Wspólne dla wszystkich:** 3 HP, ruch, atak podstawowy (LPM / RT), dash (Spacja / A) z 1,2 s cooldownu i 0,15 s nietykalności podczas dashu. Po śmierci odrodzenie po 3 s.
+**Wspólne dla wszystkich:** 3 HP (klasy wręcz — Rycerz, Łotrzyk, Inżynier, Barbarzyńca — 4 HP), ruch, atak podstawowy (LPM / RT), dash (Spacja / A) z 1,2 s cooldownu i 0,15 s nietykalności podczas dashu. Po śmierci odrodzenie po 2 s.
 
 Każdy skin to wygląd i **jedna unikalna umiejętność** (PPM / RB), czasem z drobną zmianą ataku podstawowego. Skin wybierasz w lobby, a zmienić go możesz tylko podczas odrodzenia.
 
@@ -65,7 +65,7 @@ Każdy skin to wygląd i **jedna unikalna umiejętność** (PPM / RB), czasem z 
 | **Rycerz** | Cięcie melee 120°, 10 dmg | **Tarcza:** blokuje wszystko z przodu przez 1,5 s, a odbite pociski lecą w bossa | 8 s | przetrwanie |
 | **Łucznik** | Strzała, zasięg 9 m, 6 dmg | **Przeszywający strzał:** po naładowaniu 0,6 s przebija wszystko, 30 dmg | 7 s | dystans, dobijanie |
 | **Łotrzyk** | Sztylet melee 60°, 8 dmg, szybki | **Krok cienia:** teleport za plecy celu (do 5 m), następny atak zadaje 3× obrażenia | 10 s | kradzież ostatniego ciosu |
-| **Kapłan** | Kula światła, 5 m, 7 dmg | **Aura:** leczy 1 HP **wszystkim** bohaterom w promieniu 3 m, także rywalom | 14 s | wsparcie, dylemat |
+| **Kapłan** | Kula światła, 5 m, 7 dmg | **Aura:** leczy 1 HP **wszystkim** bohaterom w promieniu 3 m, także rywalom (w Bitwie bossów tylko własnej drużynie) | 14 s | wsparcie, dylemat |
 | **Inżynier** | Klucz melee, 9 dmg | **Wieżyczka:** stawia działko na 6 s, które strzela w bossa po 4 dmg. Ostatni cios zadany przez wieżyczkę liczy się jako cios Inżyniera | 15 s | presja obszarowa |
 
 **Zasady balansu:** średnie obrażenia na sekundę wszystkich skinów różnią się najwyżej o ±15%. Łotrzyk ma najwyższy potencjał do kradzieży ostatniego ciosu, ale najsłabszą przeżywalność.
@@ -89,7 +89,7 @@ Każdy skin to wygląd i **jedna unikalna umiejętność** (PPM / RB), czasem z 
 - **R, Deszcz głazów:** 4 strefy z telegrafem 0,8 s w miejscach, gdzie stoją bohaterowie. CD 14 s.
 
 ### 4.3 Cień (zabójca)
-- **Pasywka:** prędkość 1,3×, HP 0,7×.
+- **Pasywka:** prędkość 1,3×, HP 0,9× (było 0,7× — patrz docs/decisions.md 73).
 - **Atak:** szybkie cięcie, 1 dmg.
 - **Q, Teleport:** przeniesienie do kursora (do 7 m), zostawia wybuch w punkcie startu. CD 7 s.
 - **E, Zasłona:** niewidzialność na 2,5 s. Widać tylko delikatny cień na ziemi. Zadanie obrażeń przerywa zasłonę. CD 12 s.

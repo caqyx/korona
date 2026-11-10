@@ -123,6 +123,19 @@ export function hostLost(s) {
   return null;
 }
 
+/**
+ * Decyzja klienta o migracji nieplanowanej w jednym takcie monitora:
+ *  - 'begin'  — host właśnie zniknął, zaczynamy migrację,
+ *  - 'cancel' — fałszywy alarm: host, którego uznaliśmy za utraconego, wrócił, a nikt nie przejął roli,
+ *  - null     — nic do zrobienia (w tym: trwa inna migracja, np. po przyjęciu claimu).
+ * @param {{lost:string|null, migrating:boolean, pendingLoss:string|null, hostId:string}} s
+ * @returns {'begin'|'cancel'|null}
+ */
+export function unplannedAction(s) {
+  if (s.lost) return s.migrating ? null : 'begin';
+  return s.migrating && s.pendingLoss !== null && s.pendingLoss === s.hostId ? 'cancel' : null;
+}
+
 /** Mediana. @param {number[]} xs */
 export function median(xs) {
   const s = [...xs].sort((a, b) => a - b);

@@ -2,7 +2,7 @@
  * Opisy bohaterów i bossów dla UI (wybór skina, sloty lokalne, Bestiariusz).
  * Liczby pochodzą z sim/config.js, więc zmiana balansu od razu zmienia opisy.
  */
-import { SKINS, BOSSES, RARITY, HERO } from '../sim/config.js';
+import { SKINS, BOSSES, RARITY, heroBaseHp } from '../sim/config.js';
 
 /** Liczba po polsku: 1.5 → „1,5”. @param {number} n */
 export const num = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -68,7 +68,11 @@ export const SKIN_TEXT = {
   },
 };
 
-export const HERO_COMMON = `Każdy bohater: ${HERO.hp} HP, dash co ${num(HERO.dashCooldown)} s (${num(HERO.dashDuration)} s nietykalności), odrodzenie po ${HERO.respawnTime} s.`;
+/** Bazowe maks. HP klasy — jedna definicja w sim/config.js (`heroBaseHp`). */
+export const skinHp = heroBaseHp;
+
+/** Wiersz roli klasy z jej HP, np. „Przetrwanie · 4 HP” (wybór klasy, Customize, menu). @param {string} skin */
+export const roleLine = (skin) => `${SKIN_TEXT[skin]?.role ?? ''} · ${skinHp(skin)} HP`;
 
 const B = BOSSES;
 /** @type {Record<string, {title:string, passive:[string,string], atk:string, q:[string,string], e:[string,string], r:[string,string]}>} */

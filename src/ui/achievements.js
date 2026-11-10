@@ -63,8 +63,6 @@ export function getAchievements() {
   });
 }
 
-export const getStats = load;
-
 const add = (arr, v) => (v && !arr.includes(v) ? [...arr, v] : arr);
 
 /**

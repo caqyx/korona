@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { createPlayers, createRoomAndJoin, pickSkinsAndStart, debug, tickOf } from './fixtures.js';
+import { createPlayers, createRoomAndJoin, pickSkinsAndStart, debug, tickOf, closePlayersAfterEach } from './fixtures.js';
+
+closePlayersAfterEach(test);
 
 test('tworzenie pokoju, dołączanie po kodzie, wybór skinów, start meczu', async ({ browser }) => {
   const { pages, errors } = await createPlayers(browser, 3);
@@ -38,7 +40,8 @@ test('fallback bez WebRTC: mecz działa przez przekaźnik transportu', async ({ 
 });
 
 test('rewanż w tym samym pokoju', async ({ browser }) => {
-  const { pages, errors } = await createPlayers(browser, 2, { query: 'bot=1&speed=8' });
+  // krótki mecz (20 pkt, ×4): rewanż nie potrzebuje pełnych 100 pkt, a ×8 dławiło 2-rdzeniowe CI
+  const { pages, errors } = await createPlayers(browser, 2, { query: 'bot=1&speed=4&target=20' });
   await createRoomAndJoin(pages);
   await pickSkinsAndStart(pages, ['rycerz', 'kaplan']);
   for (const p of pages) await p.waitForSelector('#screen-summary:not(.hidden)', { timeout: 150_000 });
@@ -47,6 +50,10 @@ test('rewanż w tym samym pokoju', async ({ browser }) => {
   for (const p of pages) await p.waitForSelector('#screen-lobby:not(.hidden)');
   await pickSkinsAndStart(pages, ['lucznik', 'lotrzyk']);
   const st = await pages[1].evaluate(() => window.__korona.getState());
-  expect(st.players.every((p) => p.score === 0)).toBe(true);
+  // nowy mecz, a nie dalszy ciąg starego: zegar od zera i nikt nie ma wyniku z poprzedniego meczu (zwycięzca miał ≥ 20).
+  // Nie „wszyscy 0 pkt”: przy ×4 bot potrafi zdobyć koronę, zanim test odczyta stan.
+  expect(st.phase).not.toBe('ended');
+  expect(st.matchTime).toBeLessThan(15);
+  expect(Math.max(...st.players.map((p) => p.score))).toBeLessThan(20);
   expect(errors).toEqual([]);
 });
